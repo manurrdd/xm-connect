@@ -97,6 +97,17 @@ final class Probe: NSObject, RFCOMMConnectionDelegate {
             }
         }
 
+        if let capability = V1NoiseCapability(payload: payload) {
+            let modes = capability.ambientModes
+                .map { "\($0.id.hex) with \($0.steps) steps" }
+                .joined(separator: ", ")
+            print("""
+                         ncSettingType \(capability.ncSettingType.hex), \
+                ncStep \(capability.ncStep), asmSettingType \(capability.asmSettingType.hex)
+                         ambient modes: \(modes)
+                """)
+        }
+
         if let noise = V1NoiseControl(payload: payload) {
             print("""
                          effect \(noise.effect.hex), \
@@ -104,6 +115,25 @@ final class Probe: NSObject, RFCOMMConnectionDelegate {
                 asmSettingType \(noise.asmSettingType.hex), asmId \(noise.asmId.hex), \
                 level \(noise.asmLevel)
                 """)
+        }
+
+        if let equalizer = MDREqualizer(payload: payload, family: family) {
+            let clearBass = equalizer.clearBass.map { "clear bass \($0), " } ?? ""
+            print("         preset \(equalizer.preset.hex), \(clearBass)bands \(equalizer.bands)")
+        }
+
+        if let battery = MDRBattery(payload: payload, family: family) {
+            print("         \(describe(battery))")
+        }
+    }
+
+    private func describe(_ battery: MDRBattery) -> String {
+        func text(_ level: MDRBatteryLevel) -> String { "\(level.percent)% \(level.charging)" }
+
+        switch battery {
+        case .single(let level): return "battery \(text(level))"
+        case .leftRight(let left, let right): return "battery left \(text(left)), right \(text(right))"
+        case .cradle(let level): return "case battery \(text(level))"
         }
     }
 

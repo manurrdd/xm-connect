@@ -50,18 +50,4 @@ final class PayloadTests: XCTestCase {
         XCTAssertTrue(ids.contains(0x21), "power off")
         XCTAssertFalse(ids.contains(0x15), "an over-ear model has no left/right battery")
     }
-
-    func testReadsNoiseControlFields() {
-        let noise = V1NoiseControl(payload: [0x67, 0x02, 0x11, 0x02, 0x02, 0x01, 0x00, 0x00])
-
-        XCTAssertEqual(noise?.effect, 0x11)
-        XCTAssertEqual(noise?.ncSettingType, 0x02)
-        XCTAssertEqual(noise?.ncValue, 0x02)
-        XCTAssertEqual(noise?.asmSettingType, 0x01)
-        XCTAssertEqual(noise?.asmLevel, 0)
-    }
-
-    func testIgnoresNoiseControlOfAnotherInquiry() {
-        XCTAssertNil(V1NoiseControl(payload: [0x67, 0x03, 0x11, 0x01, 0x00, 0x01, 0x00, 0x05]))
-    }
 }

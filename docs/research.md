@@ -74,6 +74,10 @@ The implementations disagree on two of those fields:
 | HeadBridge (docs) | `02` (DUAL_SINGLE_OFF) | `11` | WH-1000XM3 |
 | sony-connect-osx | device-reported, `02` as fallback | `11` | WH-1000XM4 |
 
+A WH-1000XM4 settles it: both the capability reply and the state reply carry `ncSettingType 02`,
+so the two implementations that hardcode `01` are writing a value their own device never reported.
+The capture is in [devices/WH-1000XM4.md](devices/WH-1000XM4.md).
+
 sony-connect-osx settles it without choosing: it stores `ncSettingType`, `asmSettingType` and
 `asmId` as they arrive in the device's own `67` return, and echoes them back on every set. That is
 the only approach that survives differences across models and firmware revisions, and it is the one
