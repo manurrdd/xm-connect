@@ -75,6 +75,24 @@ public enum V1Command {
     }
 
     public static func powerOff() -> [UInt8] { [0x22, 0x00, 0x01] }
+
+    /// The settings that sit behind a general-setting slot, a system inquiry or the audio table.
+    /// Which of them a device has is announced as a function id; what each one holds has to be
+    /// read from the device.
+    public static func generalSettingCapability(slot: UInt8) -> [UInt8] { [0xD0, slot, 0x01] }
+    public static func generalSetting(slot: UInt8) -> [UInt8] { [0xD6, slot] }
+    public static func systemSetting(_ type: UInt8) -> [UInt8] { [0xF6, type] }
+    public static func audioSetting(_ type: UInt8) -> [UInt8] { [0xE6, type] }
+
+    /// Announced function ids that map onto a system inquiry.
+    public static let systemFunctions: [(id: UInt8, inquiry: UInt8)] = [
+        (0xF1, 0x01),  // vibrator
+        (0xF2, 0x02),  // power saving mode
+        (0xF3, 0x03),  // playback control by wearing
+        (0xF4, 0x04),  // auto power off
+        (0xF5, 0x05),  // speak-to-chat
+        (0xF6, 0x06),  // assignable controls
+    ]
 }
 
 /// Table used from the WH-1000XM5 onwards.

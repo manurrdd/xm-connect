@@ -23,12 +23,14 @@ final class Probe {
     private var finished = false
 
     private let action: ProbeAction?
+    private let explore: Bool
     private var settingTypes: V1NoiseSettingTypes?
     private var noiseVariant: UInt8?
     private var actionApplied = false
 
-    init(device: MDRDevice, action: ProbeAction?) {
+    init(device: MDRDevice, action: ProbeAction?, explore: Bool) {
         self.action = action
+        self.explore = explore
         connection = RFCOMMConnection(device: device)
         connection.onOpen = { [weak self] in self?.channelOpened() }
         connection.onFrame = { [weak self] frame in self?.receive(frame) }
@@ -165,6 +167,21 @@ final class Probe {
         }
     }
 
+    /// Everything else the device announced, asked for raw. What comes back is how the next
+    /// feature gets implemented.
+    private func exploreV1(_ functions: [UInt8]) {
+        for slot: UInt8 in [0xD1, 0xD2, 0xD3] where functions.contains(slot) {
+            pending.append(V1Command.generalSettingCapability(slot: slot))
+            pending.append(V1Command.generalSetting(slot: slot))
+        }
+        for (id, inquiry) in V1Command.systemFunctions where functions.contains(id) {
+            pending.append(V1Command.systemSetting(inquiry))
+        }
+        if functions.contains(0xE2) {
+            pending.append(V1Command.audioSetting(0x02))
+        }
+    }
+
     /// The write, followed by a read that shows what the device made of it.
     private func commands(for action: ProbeAction) -> [[UInt8]] {
         switch (action, connection.device.family) {
@@ -210,6 +227,7 @@ final class Probe {
             for (id, kind) in V1Command.batteryFunctions where functions.contains(id) {
                 pending.append(V1Command.battery(kind))
             }
+            if explore { exploreV1(functions) }
         case .v2:
             noiseVariant = functions.compactMap(V2Command.noiseVariant(forFunction:)).first
             if let noiseVariant {
@@ -257,7 +275,12 @@ if devices.count > 1 {
 }
 
 do {
-    try Probe(device: device, action: parseAction(Array(CommandLine.arguments.dropFirst()))).run()
+    let arguments = Array(CommandLine.arguments.dropFirst())
+    try Probe(
+        device: device,
+        action: parseAction(arguments),
+        explore: arguments.contains("--explore")
+    ).run()
 } catch {
     print("error    \(error)")
     exit(1)

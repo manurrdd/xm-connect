@@ -31,7 +31,8 @@ Run it from Terminal and accept the Bluetooth prompt. macOS attributes the reque
 terminal application, so a shell without that permission aborts the process.
 
 It reads by default. Passing one of `--nc`, `--wind`, `--ambient <1-20>` (with `--voice` for focus
-on voice), `--noise-off` or `--power-off` applies that change and reads the state back.
+on voice), `--noise-off` or `--power-off` applies that change and reads the state back. `--explore`
+additionally asks for every announced setting that has no decoder yet and prints the raw replies.
 
 ## Protocol
 
