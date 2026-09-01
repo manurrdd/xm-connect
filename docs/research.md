@@ -40,6 +40,8 @@ Divergent:
 
 | | v1 | v2 |
 |---|---|---|
+| Protocol info reply | version as Int16BE, four bytes | version as Int32BE plus two table-support bytes, eight bytes |
+| Support function list | one byte per function | every function id followed by a priority byte |
 | Battery | `10` get, `11` ret, `13` notify | `22` get, `23` ret, `25` notify |
 | Power off | `22` (COMMON_SET_POWER_OFF) | `24` (POWER_SET_STATUS) |
 | EQ inquired type | `01` (PRESET_EQ) | `00` |
@@ -47,6 +49,10 @@ Divergent:
 | NC/ambient payload | 8 bytes | 6 to 9 bytes by variant |
 | EQ presets | genre names (Rock, Pop, Jazz, Dance, EDM, R&B, Acoustic) | Bright, Excited, Mellow, Relaxed, Vocal, Treble Boost, Bass Boost, Speech |
 | Support-function ids | NC+ambient `62`, ambient `63`, battery `11`, left/right `15`, case `18`, power off `21`, EQ `51` | NC `6B`/`6D`/`67`, battery `20`/`21`/`22`, EQ `50`/`52` |
+
+The two reply layouts are confirmed by a WH-1000XM4 capture, in
+[devices/WH-1000XM4.md](devices/WH-1000XM4.md). They are easy to get wrong, because the opcodes are
+the same in both families and only the shape of the answer changes.
 
 Opcode `22` collides: power off in v1, battery query in v2. Command tables and parsers have to be
 separate per family rather than one table with conditionals.

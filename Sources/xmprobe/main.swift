@@ -78,13 +78,15 @@ final class Probe: NSObject, RFCOMMConnectionDelegate {
     }
 
     private func report(_ payload: [UInt8]) {
-        if let info = MDRProtocolInfo(payload: payload) {
-            print("         version \(info.version), table1 \(info.hasTable1), table2 \(info.hasTable2)")
+        let family = connection.device.family
+
+        if let info = MDRProtocolInfo(payload: payload, family: family) {
+            let tables = info.tables.map { ", table1 \($0.table1), table2 \($0.table2)" } ?? ""
+            print("         version \(info.version)\(tables)")
         }
 
-        if let functions = MDRSupportFunctions(payload: payload) {
+        if let functions = MDRSupportFunctions(payload: payload, family: family) {
             print("         \(functions.ids.count) functions announced")
-            let family = connection.device.family
             for id in functions.ids {
                 print("           \(id.hex)  \(family.functionName(for: id) ?? "unknown")")
             }
@@ -102,7 +104,9 @@ final class Probe: NSObject, RFCOMMConnectionDelegate {
 
     /// Queries the device's own capability list makes possible.
     private func queueFollowUps(_ payload: [UInt8]) {
-        guard let functions = MDRSupportFunctions(payload: payload)?.ids else { return }
+        guard let functions = MDRSupportFunctions(
+            payload: payload, family: connection.device.family
+        )?.ids else { return }
 
         switch connection.device.family {
         case .v1:
