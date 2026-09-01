@@ -5,12 +5,19 @@ Sound Connect for phones only, so noise control, equalizer and battery are out o
 
 ## Status
 
-Early development. Protocol core and a diagnostic tool; no user interface yet.
+Reads are verified against a WH-1000XM4: handshake, capabilities, noise control, equalizer and
+battery. Writes are implemented and unit tested, but not yet confirmed on hardware.
+
+## Build
 
 ```sh
-swift build
-swift test
+make app     # .build/XMConnect.app
+make run
+make test
 ```
+
+The app is a menu bar item with no dock icon. It is signed ad hoc, so the first launch needs
+Right click, Open, or System Settings, Privacy & Security.
 
 ## xmprobe
 

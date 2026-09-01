@@ -14,6 +14,8 @@ public final class MDRSession {
         public var equalizer: MDREqualizer?
         public var equalizerCapability: MDREqualizerCapability?
         public var battery: MDRBattery?
+
+        public init() {}
     }
 
     public private(set) var state = State() {
