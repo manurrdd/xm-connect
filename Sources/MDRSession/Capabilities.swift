@@ -1,5 +1,14 @@
 import MDRKit
 
+/// A general-setting slot the device exposes as a switch, under the name it publishes.
+public struct MDRSetting: Equatable, Identifiable {
+    public let slot: UInt8
+    public let name: String
+    public var isOn: Bool
+
+    public var id: UInt8 { slot }
+}
+
 /// What a connected headset can actually do, taken from the function ids it announces and,
 /// where the family provides one, its noise-control capability reply.
 public struct MDRCapabilities: Equatable {
@@ -11,6 +20,10 @@ public struct MDRCapabilities: Equatable {
     public var supportsWindReduction = false
     public var supportsFocusOnVoice = false
     public var ambientSteps = 20
+    /// General-setting slots the device announced. What each one holds is only known once its
+    /// capability reply arrives.
+    public var settingSlots: [UInt8] = []
+    public var hasUpscaling = false
 
     public var hasNoiseControl: Bool { hasNoiseCancelling || hasAmbientSound }
 
@@ -26,6 +39,8 @@ public struct MDRCapabilities: Equatable {
             hasEqualizer = announced.contains(0x51) || announced.contains(0x53)
             hasPowerOff = announced.contains(0x21)
             batteries = V1Command.batteryFunctions.filter { announced.contains($0.id) }.map(\.kind)
+            settingSlots = V1Command.generalSettingSlots.filter(announced.contains)
+            hasUpscaling = announced.contains(0xE2)
         case .v2:
             let variant = functions.compactMap(V2Command.noiseVariant(forFunction:)).first
             hasNoiseCancelling = variant != nil && variant != 0x22

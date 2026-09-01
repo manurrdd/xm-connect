@@ -33,6 +33,14 @@ final class HeadphonesController: ObservableObject {
         session?.setEqualizerPreset(preset)
     }
 
+    func setSetting(slot: UInt8, isOn: Bool) {
+        session?.setSetting(slot: slot, isOn: isOn)
+    }
+
+    func setUpscaling(_ isOn: Bool) {
+        session?.setUpscaling(isOn)
+    }
+
     func powerOff() {
         session?.powerOff()
     }
@@ -41,7 +49,10 @@ final class HeadphonesController: ObservableObject {
         guard session == nil, !isConnecting else { return }
         isConnecting = true
 
-        guard let found = RFCOMMConnection.discover().first else { return retry() }
+        guard let found = RFCOMMConnection.discover().first else {
+            session = nil
+            return retry()
+        }
 
         let session = MDRSession(family: found.family, link: RFCOMMConnection(device: found))
         session.onStateChange = { [weak self] state in
@@ -54,22 +65,23 @@ final class HeadphonesController: ObservableObject {
             MainActor.assumeIsolated { self?.dropped() }
         }
 
-        do {
-            try session.start()
-        } catch {
-            return retry()
-        }
-
         self.session = session
         device = found
         waitForHandshake()
+
+        do {
+            try session.start()
+        } catch {
+            dropped()
+        }
     }
 
     /// A channel that opens but never finishes the handshake leaves the app looking connected and
-    /// doing nothing, which is what happens when the headphones are paired but switched off.
+    /// doing nothing, which is what paired-but-switched-off headphones do. Giving up here cannot
+    /// wait for a close callback: an unopened channel never sends one.
     private func waitForHandshake() {
         let timeout = DispatchWorkItem { [weak self] in
-            MainActor.assumeIsolated { self?.session?.close() }
+            MainActor.assumeIsolated { self?.dropped() }
         }
         handshakeTimeout = timeout
         DispatchQueue.main.asyncAfter(deadline: .now() + handshakeDeadline, execute: timeout)
@@ -85,14 +97,20 @@ final class HeadphonesController: ObservableObject {
     private func dropped() {
         handshakeTimeout?.cancel()
         handshakeTimeout = nil
+
+        // Detached before closing so the session's own close does not call back in here.
+        let closing = session
+        closing?.onStateChange = nil
+        closing?.onClose = nil
         session = nil
+        closing?.close()
+
         device = nil
         state = MDRSession.State()
         retry()
     }
 
     private func retry() {
-        session = nil
         isConnecting = false
 
         let delay = retryDelay

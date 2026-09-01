@@ -14,6 +14,8 @@ public final class MDRSession {
         public var equalizer: MDREqualizer?
         public var equalizerCapability: MDREqualizerCapability?
         public var battery: MDRBattery?
+        public var settings: [MDRSetting] = []
+        public var upscaling: Bool?
 
         public init() {}
     }
@@ -37,6 +39,7 @@ public final class MDRSession {
     private var awaitingAcknowledgement: DispatchWorkItem?
     private var settingTypes: V1NoiseSettingTypes?
     private var noiseVariant: UInt8?
+    private var settingNames: [UInt8: String] = [:]
 
     public init(family: MDRProtocolFamily, link: MDRLink, acknowledgementTimeout: TimeInterval = 3) {
         self.family = family
@@ -84,6 +87,20 @@ public final class MDRSession {
         case .v1: enqueue(V1Command.setEqualizerBands(preset: preset, clearBass: clearBass, bands: bands))
         case .v2: enqueue(V2Command.setEqualizerBands(preset: preset, clearBass: clearBass, bands: bands))
         }
+    }
+
+    public func setSetting(slot: UInt8, isOn: Bool) {
+        guard family == .v1 else { return }
+        enqueue(V1Command.setGeneralSetting(slot: slot, isOn: isOn))
+        if let index = state.settings.firstIndex(where: { $0.slot == slot }) {
+            state.settings[index].isOn = isOn
+        }
+    }
+
+    public func setUpscaling(_ isOn: Bool) {
+        guard family == .v1 else { return }
+        enqueue(V1Command.setUpscaling(isOn: isOn))
+        state.upscaling = isOn
     }
 
     /// The device acknowledges and then drops the link, which the caller sees as a close.
@@ -152,6 +169,27 @@ public final class MDRSession {
         if let battery = MDRBattery(payload: payload, family: family) {
             state.battery = battery
         }
+
+        if let info = MDRGeneralSettingInfo(payload: payload) {
+            settingNames[info.slot] = info.displayName
+        }
+
+        if let value = MDRGeneralSettingValue(payload: payload), let isOn = value.isOn {
+            let setting = MDRSetting(
+                slot: value.slot,
+                name: settingNames[value.slot] ?? "Setting \(value.slot.hex)",
+                isOn: isOn
+            )
+            if let index = state.settings.firstIndex(where: { $0.slot == value.slot }) {
+                state.settings[index] = setting
+            } else {
+                state.settings.append(setting)
+            }
+        }
+
+        if let upscaling = MDRUpscaling(payload: payload) {
+            state.upscaling = upscaling.isOn
+        }
     }
 
     private func capabilityQueries() -> [[UInt8]] {
@@ -169,6 +207,10 @@ public final class MDRSession {
                 queries.append(V1Command.equalizer())
             }
             queries += capabilities.batteries.map(V1Command.battery)
+            queries += capabilities.settingSlots.flatMap {
+                [V1Command.generalSettingCapability(slot: $0), V1Command.generalSetting(slot: $0)]
+            }
+            if capabilities.hasUpscaling { queries.append(V1Command.audioSetting(0x02)) }
         case .v2:
             if let noiseVariant { queries.append(V2Command.noise(variant: noiseVariant)) }
             if capabilities.hasEqualizer {

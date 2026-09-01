@@ -19,6 +19,13 @@ private enum XM4 {
     ]
     static let equalizer: [UInt8] = [0x57, 0x01, 0x00, 0x06, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A]
     static let battery: [UInt8] = [0x11, 0x00, 0x5A, 0x00]
+    static let touchPanelName: [UInt8] =
+        [0xD1, 0xD1, 0x02, 0x13] + Array("TOUCH_PANEL_SETTING".utf8) + [0x00, 0x01, 0x00]
+    static let touchPanelOff: [UInt8] = [0xD7, 0xD1, 0x01, 0x00]
+    static let multipointName: [UInt8] =
+        [0xD1, 0xD2, 0x02, 0x12] + Array("MULTIPOINT_SETTING".utf8) + [0x00, 0x01, 0x00]
+    static let multipointOn: [UInt8] = [0xD7, 0xD2, 0x01, 0x01]
+    static let upscalingOn: [UInt8] = [0xE7, 0x02, 0x00, 0x01]
 }
 
 final class MDRSessionTests: XCTestCase {
@@ -63,6 +70,9 @@ final class MDRSessionTests: XCTestCase {
             [0x50, 0x01, 0x01],  // equalizer capability
             [0x56, 0x01],  // equalizer
             [0x10, 0x00],  // battery, single level only
+            [0xD0, 0xD1, 0x01], [0xD6, 0xD1],
+            [0xD0, 0xD2, 0x01], [0xD6, 0xD2],
+            [0xE6, 0x02],
         ])
     }
 
@@ -92,6 +102,23 @@ final class MDRSessionTests: XCTestCase {
         XCTAssertEqual(session.state.equalizer?.bands, [0, 0, 0, 0, 0])
         XCTAssertEqual(session.state.battery, .single(MDRBatteryLevel(percent: 90, charging: .notCharging)))
         XCTAssertTrue(session.state.isReady)
+    }
+
+    func testNamesTheSettingsTheDeviceExposes() throws {
+        try settle()
+
+        XCTAssertEqual(session.state.settings.map(\.name), ["Touch panel", "Multipoint"])
+        XCTAssertEqual(session.state.settings.map(\.isOn), [false, true])
+        XCTAssertEqual(session.state.upscaling, true)
+    }
+
+    func testWritesASettingAndShowsItStraightAway() throws {
+        try settle()
+
+        session.setSetting(slot: 0xD1, isOn: true)
+
+        XCTAssertEqual(link.commands.last, [0xD8, 0xD1, 0x01])
+        XCTAssertEqual(session.state.settings.first?.isOn, true)
     }
 
     func testWritesNoiseWithTheSettingTypesTheDeviceReported() throws {
@@ -147,5 +174,10 @@ final class MDRSessionTests: XCTestCase {
         link.reply(XM4.equalizerCapability)
         link.reply(XM4.equalizer)
         link.reply(XM4.battery)
+        link.reply(XM4.touchPanelName)
+        link.reply(XM4.touchPanelOff)
+        link.reply(XM4.multipointName)
+        link.reply(XM4.multipointOn)
+        link.reply(XM4.upscalingOn)
     }
 }

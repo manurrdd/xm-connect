@@ -84,6 +84,17 @@ public enum V1Command {
     public static func systemSetting(_ type: UInt8) -> [UInt8] { [0xF6, type] }
     public static func audioSetting(_ type: UInt8) -> [UInt8] { [0xE6, type] }
 
+    public static func setGeneralSetting(slot: UInt8, isOn: Bool) -> [UInt8] {
+        [0xD8, slot, isOn ? 0x01 : 0x00]
+    }
+
+    /// 0x00 selects the automatic mode, which is the only alternative to off.
+    public static func setUpscaling(isOn: Bool) -> [UInt8] {
+        [0xE8, 0x02, 0x00, isOn ? 0x01 : 0x00]
+    }
+
+    public static let generalSettingSlots: [UInt8] = [0xD1, 0xD2, 0xD3]
+
     /// Announced function ids that map onto a system inquiry.
     public static let systemFunctions: [(id: UInt8, inquiry: UInt8)] = [
         (0xF1, 0x01),  // vibrator

@@ -1,52 +1,100 @@
 import MDRKit
+import MDRSession
 import SwiftUI
 
 struct MenuView: View {
     @ObservedObject var controller: HeadphonesController
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            header
-
+        VStack(alignment: .leading, spacing: 14) {
             if controller.isConnected {
-                if controller.state.capabilities.hasNoiseControl { noiseControls }
-                if let presets = controller.state.equalizerCapability?.presets, !presets.isEmpty {
-                    equalizer(presets)
-                }
-                if controller.state.capabilities.hasPowerOff {
-                    Button("Turn off headphones", action: controller.powerOff)
-                }
+                connected
+            } else {
+                searching
             }
 
             Divider()
+
             Button("Quit") { NSApplication.shared.terminate(nil) }
                 .keyboardShortcut("q")
         }
         .padding(14)
-        .frame(width: 260)
+        .frame(width: 268)
     }
 
-    private var header: some View {
-        HStack {
-            Text(controller.device?.name ?? "Not connected")
-                .font(.headline)
-            Spacer()
-            if let battery = batteryText {
-                Text(battery).foregroundStyle(.secondary)
-            }
+    private var searching: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "headphones")
+                .font(.system(size: 30, weight: .light))
+                .foregroundStyle(.tertiary)
+            Text("Looking for headphones")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 22)
+    }
+
+    @ViewBuilder
+    private var connected: some View {
+        header
+
+        if controller.state.capabilities.hasNoiseControl {
+            noiseControls
+        }
+
+        if let presets = controller.state.equalizerCapability?.presets, !presets.isEmpty {
+            equalizer(presets)
+        }
+
+        if !controller.state.settings.isEmpty || controller.state.upscaling != nil {
+            Divider()
+            deviceSettings
+        }
+
+        if controller.state.capabilities.hasPowerOff {
+            Button("Turn off headphones", action: controller.powerOff)
         }
     }
 
-    private var batteryText: String? {
-        switch controller.state.battery {
+    private var header: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(controller.device?.name ?? "")
+                .font(.headline)
+            Spacer()
+            battery
+        }
+    }
+
+    @ViewBuilder
+    private var battery: some View {
+        if let battery = controller.state.battery {
+            HStack(spacing: 3) {
+                if isCharging(battery) {
+                    Image(systemName: "bolt.fill").imageScale(.small)
+                }
+                Text(batteryText(battery))
+            }
+            .foregroundStyle(.secondary)
+        }
+    }
+
+    private func batteryText(_ battery: MDRBattery) -> String {
+        switch battery {
         case .single(let level), .cradle(let level): "\(level.percent)%"
         case .leftRight(let left, let right): "\(left.percent)% · \(right.percent)%"
-        case nil: nil
+        }
+    }
+
+    private func isCharging(_ battery: MDRBattery) -> Bool {
+        switch battery {
+        case .single(let level), .cradle(let level): level.charging == .charging
+        case .leftRight(let left, let right): left.charging == .charging || right.charging == .charging
         }
     }
 
     private var noiseControls: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             Picker("", selection: noiseSelection) {
                 Text("Off").tag(NoiseSelection.off)
                 if controller.state.capabilities.hasNoiseCancelling {
@@ -89,6 +137,24 @@ struct MenuView: View {
         )) {
             ForEach(presets, id: \.id) { preset in
                 Text(preset.displayName).tag(preset.id)
+            }
+        }
+    }
+
+    private var deviceSettings: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(controller.state.settings) { setting in
+                Toggle(setting.name, isOn: Binding(
+                    get: { setting.isOn },
+                    set: { controller.setSetting(slot: setting.slot, isOn: $0) }
+                ))
+            }
+
+            if let upscaling = controller.state.upscaling {
+                Toggle("DSEE", isOn: Binding(
+                    get: { upscaling },
+                    set: { controller.setUpscaling($0) }
+                ))
             }
         }
     }
