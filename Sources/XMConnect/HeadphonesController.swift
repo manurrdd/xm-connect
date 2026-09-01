@@ -16,6 +16,9 @@ final class HeadphonesController: ObservableObject {
     /// Set when the headset is paired but not connected to this Mac, which is a different thing
     /// for the user to fix than not finding one at all.
     @Published private(set) var isOffline = false
+    /// Whether a settled session is behind what is on screen. The state outlives the session, so
+    /// reopening the menu shows the last reading straight away instead of an empty panel.
+    @Published private(set) var isLive = false
 
     private var session: MDRSession?
     private var handshakeTimeout: DispatchWorkItem?
@@ -30,7 +33,7 @@ final class HeadphonesController: ObservableObject {
     /// usable again straight after.
     private let releaseDelay: TimeInterval = 5
 
-    var isConnected: Bool { state.isReady }
+    var hasReading: Bool { state.noise != nil || state.battery != nil }
 
     func menuOpened() {
         release?.cancel()
@@ -43,7 +46,7 @@ final class HeadphonesController: ObservableObject {
     func menuClosed() {
         isActive = false
         let release = DispatchWorkItem { [weak self] in
-            MainActor.assumeIsolated { self?.teardown() }
+            MainActor.assumeIsolated { self?.teardown(keepingReading: true) }
         }
         self.release = release
         DispatchQueue.main.asyncAfter(deadline: .now() + releaseDelay, execute: release)
@@ -77,6 +80,9 @@ final class HeadphonesController: ObservableObject {
         guard let found = devices.first(where: \.isConnected) else {
             isOffline = !devices.isEmpty
             isConnecting = false
+            // Nothing is there to keep a reading true any more.
+            device = nil
+            state = MDRSession.State()
             return retry()
         }
         isOffline = false
@@ -84,7 +90,10 @@ final class HeadphonesController: ObservableObject {
         let session = MDRSession(family: found.family, link: RFCOMMConnection(device: found))
         session.onStateChange = { [weak self] state in
             MainActor.assumeIsolated {
-                self?.state = state
+                // A fresh session starts blank; the reading on screen stands until it says more.
+                if state.noise != nil || state.battery != nil || state.isReady {
+                    self?.state = state
+                }
                 if state.isReady { self?.settled() }
             }
         }
@@ -117,15 +126,18 @@ final class HeadphonesController: ObservableObject {
         handshakeTimeout?.cancel()
         handshakeTimeout = nil
         isConnecting = false
+        isLive = true
         retryDelay = 2
     }
 
     private func dropped() {
-        teardown()
+        teardown(keepingReading: false)
         retry()
     }
 
-    private func teardown() {
+    /// A reading survives letting go of the channel on purpose. It does not survive the headset
+    /// dropping off, because then there is nothing to say it is still true.
+    private func teardown(keepingReading: Bool) {
         handshakeTimeout?.cancel()
         handshakeTimeout = nil
         isConnecting = false
@@ -137,8 +149,11 @@ final class HeadphonesController: ObservableObject {
         session = nil
         closing?.close()
 
-        device = nil
-        state = MDRSession.State()
+        isLive = false
+        if !keepingReading {
+            device = nil
+            state = MDRSession.State()
+        }
     }
 
     private func retry() {

@@ -7,8 +7,8 @@ struct MenuView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            if controller.isConnected {
-                connected
+            if controller.hasReading {
+                connected.disabled(!controller.isLive)
             } else {
                 searching
             }
@@ -36,8 +36,14 @@ struct MenuView: View {
         .padding(.vertical, 22)
     }
 
-    @ViewBuilder
     private var connected: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            controls
+        }
+    }
+
+    @ViewBuilder
+    private var controls: some View {
         header
 
         if controller.state.capabilities.hasNoiseControl {

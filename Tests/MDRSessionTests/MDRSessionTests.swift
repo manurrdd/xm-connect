@@ -67,9 +67,9 @@ final class MDRSessionTests: XCTestCase {
         XCTAssertEqual(Array(link.commands.dropFirst(2)), [
             [0x60, 0x02],  // noise capability
             [0x66, 0x02],  // noise state
+            [0x10, 0x00],  // battery, single level only
             [0x50, 0x01, 0x01],  // equalizer capability
             [0x56, 0x01],  // equalizer
-            [0x10, 0x00],  // battery, single level only
             [0xD0, 0xD1, 0x01], [0xD6, 0xD1],
             [0xD0, 0xD2, 0x01], [0xD6, 0xD2],
             [0xE6, 0x02],
@@ -180,9 +180,9 @@ final class MDRSessionTests: XCTestCase {
         try connect()
         link.reply(XM4.noiseCapability)
         link.reply(XM4.noiseOff)
+        link.reply(XM4.battery)
         link.reply(XM4.equalizerCapability)
         link.reply(XM4.equalizer)
-        link.reply(XM4.battery)
         link.reply(XM4.touchPanelName)
         link.reply(XM4.touchPanelOff)
         link.reply(XM4.multipointName)

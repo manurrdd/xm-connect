@@ -205,15 +205,17 @@ public final class MDRSession {
 
         switch family {
         case .v1:
+            // What the menu shows first is asked for first: every reply is a round trip, and the
+            // panel fills in as they land.
             if capabilities.hasNoiseControl {
                 queries.append(V1Command.noiseCapability())
                 queries.append(V1Command.noise())
             }
+            queries += capabilities.batteries.map(V1Command.battery)
             if capabilities.hasEqualizer {
                 queries.append(V1Command.equalizerCapability())
                 queries.append(V1Command.equalizer())
             }
-            queries += capabilities.batteries.map(V1Command.battery)
             queries += capabilities.settingSlots.flatMap {
                 [V1Command.generalSettingCapability(slot: $0), V1Command.generalSetting(slot: $0)]
             }
