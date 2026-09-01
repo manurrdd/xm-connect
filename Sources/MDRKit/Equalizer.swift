@@ -41,3 +41,21 @@ extension MDRProtocolFamily {
         }
     }
 }
+
+func equalizerPresetCommand(_ preset: UInt8, family: MDRProtocolFamily) -> [UInt8] {
+    [0x58, family.equalizerInquiredType, preset, 0x00]
+}
+
+/// Band levels go on the wire offset into an unsigned range: by ten for six-value devices,
+/// by six for ten-value ones.
+func equalizerBandsCommand(
+    preset: UInt8,
+    clearBass: Int?,
+    bands: [Int],
+    family: MDRProtocolFamily
+) -> [UInt8] {
+    let levels = (clearBass.map { [$0] } ?? []) + bands
+    let offset = levels.count == 10 ? 6 : 10
+    let encoded = levels.map { UInt8(min(offset * 2, max(0, $0 + offset))) }
+    return [0x58, family.equalizerInquiredType, preset, UInt8(encoded.count)] + encoded
+}
