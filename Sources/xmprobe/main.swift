@@ -12,6 +12,7 @@ final class Probe: NSObject, RFCOMMConnectionDelegate {
     private let connection: RFCOMMConnection
     private var pending: [[UInt8]] = []
     private var sequence: UInt8 = 0
+    private var awaitingAck = false
     private let hardDeadline = Date().addingTimeInterval(overallTimeout)
     private var silenceDeadline = Date().addingTimeInterval(silenceTimeout)
     private var finished = false
@@ -52,22 +53,26 @@ final class Probe: NSObject, RFCOMMConnectionDelegate {
 
         switch frame.type {
         case .ack:
+            awaitingAck = false
             sendNext()
         case .data, .dataNo2:
             print("recv     \(frame.payload.hex)")
             report(frame.payload)
             queueFollowUps(frame.payload)
             acknowledge(frame)
+            sendNext()
         }
     }
 
+    /// One command at a time: the next one goes out when the device acknowledges the last.
     private func sendNext() {
-        guard !pending.isEmpty else { return }
+        guard !awaitingAck, !pending.isEmpty else { return }
         let payload = pending.removeFirst()
         do {
             try connection.send(MDRFrame(type: .data, sequence: sequence, payload: payload))
             print("sent     \(payload.hex)")
             sequence ^= 1
+            awaitingAck = true
         } catch {
             print("error    \(error)")
         }
