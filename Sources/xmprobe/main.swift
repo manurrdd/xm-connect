@@ -266,12 +266,11 @@ func parseAction(_ arguments: [String]) -> ProbeAction? {
 }
 
 let devices = RFCOMMConnection.discover()
-guard let device = devices.first else {
-    print("no paired device exposes an MDR service")
+guard let device = devices.first(where: \.isConnected) else {
+    print(devices.isEmpty
+        ? "no paired device exposes an MDR service"
+        : "the headset is paired but not connected to this Mac")
     exit(1)
-}
-if devices.count > 1 {
-    print("note     \(devices.count) candidates found, using the first")
 }
 
 do {

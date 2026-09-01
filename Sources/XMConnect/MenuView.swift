@@ -27,7 +27,7 @@ struct MenuView: View {
             Image(systemName: "headphones")
                 .font(.system(size: 30, weight: .light))
                 .foregroundStyle(.tertiary)
-            Text("Looking for headphones")
+            Text(controller.isOffline ? "Headphones not connected" : "Looking for headphones")
                 .font(.callout)
                 .foregroundStyle(.secondary)
         }

@@ -6,6 +6,9 @@ public struct MDRDevice {
     public let name: String
     public let address: String
     public let family: MDRProtocolFamily
+    /// Whether the headset is connected to this Mac right now. Opening a channel to one that is
+    /// not makes macOS connect it, which is not ours to decide.
+    public let isConnected: Bool
     let bluetoothDevice: IOBluetoothDevice
 }
 
@@ -55,6 +58,7 @@ public final class RFCOMMConnection: NSObject, MDRLink {
                 name: device.name ?? "unknown",
                 address: device.addressString ?? "unknown",
                 family: family,
+                isConnected: device.isConnected(),
                 bluetoothDevice: device
             )
         }
