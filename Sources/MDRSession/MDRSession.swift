@@ -91,9 +91,15 @@ public final class MDRSession {
     }
 
     public func setSetting(slot: UInt8, isOn: Bool) {
-        guard family == .v1, let settingType = settingTypes[slot] else { return }
-        enqueue(V1Command.setGeneralSetting(slot: slot, settingType: settingType, isOn: isOn))
-        enqueue(V1Command.generalSetting(slot: slot))
+        guard let settingType = settingTypes[slot] else { return }
+        switch family {
+        case .v1:
+            enqueue(V1Command.setGeneralSetting(slot: slot, settingType: settingType, isOn: isOn))
+            enqueue(V1Command.generalSetting(slot: slot))
+        case .v2:
+            enqueue(V2Command.setGeneralSetting(slot: slot, settingType: settingType, isOn: isOn))
+            enqueue(V2Command.generalSetting(slot: slot))
+        }
         if let index = state.settings.firstIndex(where: { $0.slot == slot }) {
             state.settings[index].isOn = isOn
         }
@@ -173,15 +179,15 @@ public final class MDRSession {
             state.battery = battery
         }
 
-        if let info = MDRGeneralSettingInfo(payload: payload) {
+        if let info = MDRGeneralSettingInfo(payload: payload, family: family) {
             settingNames[info.slot] = info.displayName
         }
 
-        if let value = MDRGeneralSettingValue(payload: payload) {
+        if let value = MDRGeneralSettingValue(payload: payload, family: family) {
             settingTypes[value.slot] = value.settingType
         }
 
-        if let value = MDRGeneralSettingValue(payload: payload), let isOn = value.isOn {
+        if let value = MDRGeneralSettingValue(payload: payload, family: family), let isOn = value.isOn {
             let setting = MDRSetting(
                 slot: value.slot,
                 name: settingNames[value.slot] ?? "Setting \(value.slot.hex)",
@@ -222,11 +228,14 @@ public final class MDRSession {
             if capabilities.hasUpscaling { queries.append(V1Command.audioSetting(0x02)) }
         case .v2:
             if let noiseVariant { queries.append(V2Command.noise(variant: noiseVariant)) }
+            queries += capabilities.batteries.map(V2Command.battery)
             if capabilities.hasEqualizer {
                 queries.append(V2Command.equalizerCapability())
                 queries.append(V2Command.equalizer())
             }
-            queries += capabilities.batteries.map(V2Command.battery)
+            queries += capabilities.settingSlots.flatMap {
+                [V2Command.generalSettingCapability(slot: $0), V2Command.generalSetting(slot: $0)]
+            }
         }
         return queries
     }

@@ -48,6 +48,7 @@ public struct MDRCapabilities: Equatable {
             hasEqualizer = announced.contains(0x50) || announced.contains(0x52) || announced.contains(0x53)
             hasPowerOff = announced.contains(0x23)
             batteries = V2Command.batteryFunctions.filter { announced.contains($0.id) }.map(\.kind)
+            settingSlots = V2Command.generalSettingSlots.filter(announced.contains)
         }
 
         // A device announcing the same layout twice, with and without threshold, must not be

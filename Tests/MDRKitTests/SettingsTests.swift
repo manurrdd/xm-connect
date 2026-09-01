@@ -11,7 +11,7 @@ final class SettingsTests: XCTestCase {
     }
 
     func testNamesASlotFromTheEnumKeyTheDeviceSends() {
-        let info = MDRGeneralSettingInfo(payload: capability("TOUCH_PANEL_SETTING"))
+        let info = MDRGeneralSettingInfo(payload: capability("TOUCH_PANEL_SETTING"), family: .v1)
 
         XCTAssertEqual(info?.subject, "TOUCH_PANEL_SETTING")
         XCTAssertEqual(info?.displayName, "Touch panel")
@@ -20,7 +20,8 @@ final class SettingsTests: XCTestCase {
 
     func testKeepsTheSummaryAndNamesAnUnknownKey() {
         let info = MDRGeneralSettingInfo(
-            payload: capability("MULTIPOINT_SETTING", summary: "MULTIPOINT_SETTING_SUMMARY")
+            payload: capability("MULTIPOINT_SETTING", summary: "MULTIPOINT_SETTING_SUMMARY"),
+            family: .v1
         )
 
         XCTAssertEqual(info?.displayName, "Multipoint")
@@ -28,19 +29,19 @@ final class SettingsTests: XCTestCase {
     }
 
     func testReadsBooleanSlots() {
-        XCTAssertEqual(MDRGeneralSettingValue(payload: [0xD7, 0xD1, 0x01, 0x00])?.isOn, false)
-        XCTAssertEqual(MDRGeneralSettingValue(payload: [0xD7, 0xD2, 0x01, 0x01])?.isOn, true)
+        XCTAssertEqual(MDRGeneralSettingValue(payload: [0xD7, 0xD1, 0x01, 0x00], family: .v1)?.isOn, false)
+        XCTAssertEqual(MDRGeneralSettingValue(payload: [0xD7, 0xD2, 0x01, 0x01], family: .v1)?.isOn, true)
     }
 
     func testReadsListSlotsAsAnIndex() {
-        let value = MDRGeneralSettingValue(payload: [0xD7, 0xD3, 0x02, 0x03])
+        let value = MDRGeneralSettingValue(payload: [0xD7, 0xD3, 0x02, 0x03], family: .v1)
 
         XCTAssertNil(value?.isOn)
         XCTAssertEqual(value?.index, 3)
     }
 
     func testReadsSlotChangeNotification() {
-        XCTAssertEqual(MDRGeneralSettingValue(payload: [0xD9, 0xD2, 0x01, 0x00])?.isOn, false)
+        XCTAssertEqual(MDRGeneralSettingValue(payload: [0xD9, 0xD2, 0x01, 0x00], family: .v1)?.isOn, false)
     }
 
     func testWritesASlotWithTheReportedSettingType() {
@@ -51,7 +52,7 @@ final class SettingsTests: XCTestCase {
     }
 
     func testKeepsTheSettingTypeAWriteHasToCarryBack() {
-        XCTAssertEqual(MDRGeneralSettingValue(payload: [0xD7, 0xD1, 0x01, 0x00])?.settingType, 0x01)
+        XCTAssertEqual(MDRGeneralSettingValue(payload: [0xD7, 0xD1, 0x01, 0x00], family: .v1)?.settingType, 0x01)
     }
 
     func testReadsUpscaling() {

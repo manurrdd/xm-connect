@@ -6,13 +6,14 @@ public struct MDRGeneralSettingInfo: Equatable {
     public let summary: String
     public let isEnumKey: Bool
 
-    public init?(payload: [UInt8]) {
+    public init?(payload: [UInt8], family: MDRProtocolFamily) {
         guard payload.count >= 4, payload[0] == 0xD1 else { return nil }
 
         slot = payload[1]
-        isEnumKey = payload[2] == 0x02
-
-        var index = 3
+        // v2 puts the setting type ahead of the string format; v1 has no such byte here.
+        var index = family == .v1 ? 2 : 3
+        isEnumKey = payload[index] == family.generalSettingEnumName
+        index += 1
         guard let subject = Self.string(in: payload, at: &index),
               let summary = Self.string(in: payload, at: &index)
         else { return nil }
@@ -52,20 +53,59 @@ public struct MDRGeneralSettingValue: Equatable {
     public let isOn: Bool?
     public let index: UInt8?
 
-    public init?(payload: [UInt8]) {
+    public init?(payload: [UInt8], family: MDRProtocolFamily) {
         guard payload.count >= 4, payload[0] == 0xD7 || payload[0] == 0xD9 else { return nil }
 
         slot = payload[1]
         settingType = payload[2]
         switch payload[2] {
-        case 0x01:
-            isOn = payload[3] == 0x01
+        case family.generalSettingBoolean:
+            isOn = payload[3] == family.generalSettingOn
             index = nil
-        case 0x02:
+        case family.generalSettingList:
             isOn = nil
             index = payload[3]
         default:
             return nil
+        }
+    }
+}
+
+/// The general-setting table uses the same opcodes in both families and disagrees on almost
+/// everything inside them, down to which byte means on.
+extension MDRProtocolFamily {
+    var generalSettingBoolean: UInt8 {
+        switch self {
+        case .v1: 0x01
+        case .v2: 0x00
+        }
+    }
+
+    var generalSettingList: UInt8 {
+        switch self {
+        case .v1: 0x02
+        case .v2: 0x01
+        }
+    }
+
+    var generalSettingOn: UInt8 {
+        switch self {
+        case .v1: 0x01
+        case .v2: 0x00
+        }
+    }
+
+    var generalSettingOff: UInt8 {
+        switch self {
+        case .v1: 0x00
+        case .v2: 0x01
+        }
+    }
+
+    var generalSettingEnumName: UInt8 {
+        switch self {
+        case .v1: 0x02
+        case .v2: 0x01
         }
     }
 }

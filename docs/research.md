@@ -42,6 +42,8 @@ Divergent:
 |---|---|---|
 | Protocol info reply | version as Int16BE, four bytes | version as Int32BE plus two table-support bytes, eight bytes |
 | Support function list | one byte per function | every function id followed by a priority byte |
+| General setting capability | `D1 slot format subject summary` | `D1 slot settingType format subject summary` |
+| General setting on/off | on is `01` | on is `00` |
 | Battery | `10` get, `11` ret, `13` notify | `22` get, `23` ret, `25` notify |
 | Power off | `22` (COMMON_SET_POWER_OFF) | `24` (POWER_SET_STATUS) |
 | EQ inquired type | `01` (PRESET_EQ) | `00` |
@@ -113,6 +115,12 @@ None covers both families at the same depth, and none ships a notarized binary.
 v1 support in SonyHeadphonesClient lives on the `v1-compat` branch, unreleased, and its README
 lists it as pending while asking for volunteers with hardware. The V1T1 code is written and is the
 most complete reference available, but it is not validated.
+
+## Devices
+
+Notes per model live in [devices](devices/). A file there says which of its claims came from
+hardware in hand and which came from a recorded session someone else published, because the two
+are not worth the same.
 
 ## Sources
 

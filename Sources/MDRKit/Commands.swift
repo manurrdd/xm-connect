@@ -87,7 +87,7 @@ public enum V1Command {
     /// The setting type the device reported has to come back with the value. Without it the
     /// WH-1000XM4 acknowledges the write and changes nothing.
     public static func setGeneralSetting(slot: UInt8, settingType: UInt8, isOn: Bool) -> [UInt8] {
-        [0xD8, slot, settingType, isOn ? 0x01 : 0x00]
+        generalSettingCommand(slot: slot, settingType: settingType, isOn: isOn, family: .v1)
     }
 
     /// 0x00 selects the automatic mode, which is the only alternative to off.
@@ -156,6 +156,14 @@ public enum V2Command {
         }
     }
 
+    public static func setGeneralSetting(slot: UInt8, settingType: UInt8, isOn: Bool) -> [UInt8] {
+        generalSettingCommand(slot: slot, settingType: settingType, isOn: isOn, family: .v2)
+    }
+
+    public static func generalSettingCapability(slot: UInt8) -> [UInt8] { [0xD0, slot, 0x01] }
+    public static func generalSetting(slot: UInt8) -> [UInt8] { [0xD6, slot] }
+    public static let generalSettingSlots: [UInt8] = [0xD1, 0xD2, 0xD3, 0xD4]
+
     public static func setEqualizerPreset(_ preset: UInt8) -> [UInt8] {
         equalizerPresetCommand(preset, family: .v2)
     }
@@ -165,6 +173,15 @@ public enum V2Command {
     }
 
     public static func powerOff() -> [UInt8] { [0x24, 0x03, 0x01] }
+}
+
+private func generalSettingCommand(
+    slot: UInt8,
+    settingType: UInt8,
+    isOn: Bool,
+    family: MDRProtocolFamily
+) -> [UInt8] {
+    [0xD8, slot, settingType, isOn ? family.generalSettingOn : family.generalSettingOff]
 }
 
 private func clampLevel(_ level: Int) -> UInt8 {
