@@ -9,6 +9,11 @@ Working on a WH-1000XM4: noise control, equalizer, battery, the settings the hea
 power off, read and written. The v2 path is checked against a recorded WF-1000XM5 session but has
 never run against one.
 
+## Install
+
+[Download the disk image](https://github.com/manurrdd/xm-connect/releases/latest/download/XMConnect.dmg)
+and drag the app to Applications. It is signed and notarized, so it opens without a warning.
+
 ## Build
 
 ```sh
