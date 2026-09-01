@@ -45,8 +45,8 @@ dmg: app
 	ln -s /Applications .build/dmg/Applications
 	hdiutil create -volname "XM Connect" -srcfolder .build/dmg -ov -format UDZO "$(DMG)"
 
-# Needs a keychain profile once: xcrun notarytool store-credentials xm-connect
-# --apple-id <id> --team-id <team> --password <app-specific password>
+# Needs a keychain profile once. Run "xcrun notarytool store-credentials" and answer its
+# questions, naming the profile xm-connect.
 notarize: dmg
 	xcrun notarytool submit "$(DMG)" --keychain-profile xm-connect --wait
 	xcrun stapler staple "$(DMG)"
