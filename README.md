@@ -19,8 +19,8 @@ make dmg       # a disk image to hand to someone else
 ```
 
 Signed with a Developer ID when one is installed on the machine, ad hoc otherwise. `make notarize`
-submits the disk image, once `xcrun notarytool store-credentials` has been run and its profile
-named xm-connect.
+submits the disk image to Apple and staples the result, so it opens without a Gatekeeper warning.
+It needs a keychain profile named xm-connect, made once with `xcrun notarytool store-credentials`.
 
 It lives in the menu bar with no dock icon, and opens a window on request for when the panel is in
 the way. Launch at login is a switch in the menu.

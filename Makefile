@@ -50,6 +50,8 @@ dmg: app
 notarize: dmg
 	xcrun notarytool submit "$(DMG)" --keychain-profile xm-connect --wait
 	xcrun stapler staple "$(DMG)"
+	xcrun stapler staple "$(APP)"
+	spctl -a -vv "$(APP)"
 
 clean:
 	rm -rf .build
