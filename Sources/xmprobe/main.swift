@@ -44,6 +44,18 @@ final class Probe {
             RunLoop.main.run(until: Date().addingTimeInterval(0.1))
         }
         connection.close()
+
+        if action != nil, !actionApplied {
+            print("error    the device never reported how to apply that change")
+        }
+    }
+
+    /// A write needs what the read phase discovers: how this device wants it addressed.
+    private func canApply(_ action: ProbeAction) -> Bool {
+        switch action {
+        case .powerOff: true
+        case .setNoise: connection.device.family == .v1 ? settingTypes != nil : noiseVariant != nil
+        }
     }
 
     private func channelOpened() {
@@ -80,7 +92,7 @@ final class Probe {
     /// requested change, if any, is applied once the reads have drained and told us how to write it.
     private func sendNext() {
         guard !awaitingAck else { return }
-        if pending.isEmpty, let action, !actionApplied {
+        if pending.isEmpty, let action, !actionApplied, canApply(action) {
             actionApplied = true
             pending = commands(for: action)
         }
@@ -161,16 +173,10 @@ final class Probe {
         case (.powerOff, .v2):
             return [V2Command.powerOff()]
         case (.setNoise(let mode), .v1):
-            guard let settingTypes else {
-                print("error    the device did not report its noise setting types")
-                return []
-            }
+            guard let settingTypes else { return [] }
             return [V1Command.setNoise(mode, settingTypes: settingTypes), V1Command.noise()]
         case (.setNoise(let mode), .v2):
-            guard let noiseVariant else {
-                print("error    the device announced no known noise variant")
-                return []
-            }
+            guard let noiseVariant else { return [] }
             return [V2Command.setNoise(mode, variant: noiseVariant), V2Command.noise(variant: noiseVariant)]
         }
     }

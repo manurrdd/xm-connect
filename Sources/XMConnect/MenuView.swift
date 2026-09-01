@@ -14,7 +14,7 @@ struct MenuView: View {
                     equalizer(presets)
                 }
                 if controller.state.capabilities.hasPowerOff {
-                    Button("Power off", action: controller.powerOff)
+                    Button("Turn off headphones", action: controller.powerOff)
                 }
             }
 
@@ -88,7 +88,7 @@ struct MenuView: View {
             set: { controller.setEqualizerPreset($0) }
         )) {
             ForEach(presets, id: \.id) { preset in
-                Text(preset.name).tag(preset.id)
+                Text(preset.displayName).tag(preset.id)
             }
         }
     }

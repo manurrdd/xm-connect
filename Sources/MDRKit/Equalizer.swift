@@ -101,3 +101,41 @@ func equalizerCapabilityCommand(family: MDRProtocolFamily) -> [UInt8] {
     // 0x01 asks for English preset names.
     [0x50, family.equalizerInquiredType, 0x01]
 }
+
+extension MDREqualizerCapability.Preset {
+    /// Devices may announce a preset with an empty name, as a WH-1000XM4 does for all twelve of
+    /// its presets, so the shared preset ids carry the fallback.
+    public var displayName: String {
+        name.isEmpty ? MDREqualizerPresets.name(for: id) ?? "Preset \(id.hex)" : name
+    }
+}
+
+/// Preset ids are one namespace across both families; each model announces its own subset.
+public enum MDREqualizerPresets {
+    public static func name(for id: UInt8) -> String? { names[id] }
+
+    private static let names: [UInt8: String] = [
+        0x00: "Off",
+        0x01: "Rock",
+        0x02: "Pop",
+        0x03: "Jazz",
+        0x04: "Dance",
+        0x05: "EDM",
+        0x06: "R&B / Hip-Hop",
+        0x07: "Acoustic",
+        0x10: "Bright",
+        0x11: "Excited",
+        0x12: "Mellow",
+        0x13: "Relaxed",
+        0x14: "Vocal",
+        0x15: "Treble boost",
+        0x16: "Bass boost",
+        0x17: "Speech",
+        0xA0: "Custom",
+        0xA1: "Custom 1",
+        0xA2: "Custom 2",
+        0xA3: "Custom 3",
+        0xA4: "Custom 4",
+        0xA5: "Custom 5",
+    ]
+}

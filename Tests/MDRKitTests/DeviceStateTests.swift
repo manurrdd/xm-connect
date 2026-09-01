@@ -50,6 +50,27 @@ final class DeviceStateTests: XCTestCase {
         XCTAssertNil(MDREqualizerCapability(payload: [0x51, 0x01, 0x06, 0x15, 0x01, 0x00, 0x09, 0x4F], family: .v1))
     }
 
+    func testNamesPresetsTheDeviceLeftBlank() {
+        // A WH-1000XM4 announces twelve presets, every one of them with an empty name.
+        let payload: [UInt8] = [
+            0x51, 0x01, 0x06, 0x15, 0x0C,
+            0x00, 0x00, 0x10, 0x00, 0x11, 0x00, 0x12, 0x00, 0x13, 0x00, 0x14, 0x00,
+            0x15, 0x00, 0x16, 0x00, 0x17, 0x00, 0xA0, 0x00, 0xA1, 0x00, 0xA2, 0x00,
+        ]
+
+        let capability = MDREqualizerCapability(payload: payload, family: .v1)
+
+        XCTAssertEqual(capability?.presets.count, 12)
+        XCTAssertEqual(capability?.presets.map(\.displayName).prefix(3), ["Off", "Bright", "Excited"])
+        XCTAssertEqual(capability?.presets.last?.displayName, "Custom 2")
+    }
+
+    func testKeepsTheNameTheDeviceGives() {
+        let payload: [UInt8] = [0x51, 0x01, 0x06, 0x15, 0x01, 0x10, 0x05, 0x43, 0x6C, 0x61, 0x72, 0x6F]
+
+        XCTAssertEqual(MDREqualizerCapability(payload: payload, family: .v1)?.presets.first?.displayName, "Claro")
+    }
+
     func testReadsFlatSixBandEqualizer() {
         let equalizer = MDREqualizer(
             payload: [0x57, 0x01, 0x00, 0x06, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A], family: .v1
