@@ -104,6 +104,36 @@ final class MDRSessionTests: XCTestCase {
         XCTAssertTrue(session.state.isReady)
     }
 
+    func testIgnoresTheSecondTableFunctionList() throws {
+        try connect()
+        let announced = session.state.capabilities
+
+        // A WF-1000XM5 sends its table 2 list on the other data type, in a different id namespace.
+        link.acknowledge()
+        link.onFrame?(MDRFrame(type: .dataNo2, sequence: 0, payload: [
+            0x07, 0x00, 0x0B, 0x42, 0x3D, 0x2D, 0x53, 0xFF, 0x54, 0xFF, 0xF1, 0xFF, 0x60, 0xFF,
+        ]))
+
+        XCTAssertEqual(session.state.capabilities, announced, "table 2 must not redefine the device")
+    }
+
+    func testKeepsEarbudAndCaseBatteriesApart() throws {
+        try connect()
+
+        // Earbuds report both, one after the other.
+        link.reply([0x11, 0x01, 0x50, 0x00, 0x64, 0x00])
+        link.reply([0x11, 0x02, 0x35, 0x00])
+
+        XCTAssertEqual(earbuds?.left.percent, 80)
+        XCTAssertEqual(earbuds?.right.percent, 100)
+        XCTAssertEqual(session.state.caseBattery?.percent, 53)
+    }
+
+    private var earbuds: (left: MDRBatteryLevel, right: MDRBatteryLevel)? {
+        guard case .leftRight(let left, let right) = session.state.battery else { return nil }
+        return (left, right)
+    }
+
     func testNamesTheSettingsTheDeviceExposes() throws {
         try settle()
 

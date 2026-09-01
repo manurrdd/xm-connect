@@ -112,7 +112,7 @@ public enum V1Command {
 public enum V2Command {
     public static func protocolInfo() -> [UInt8] { [0x00, 0x00] }
     public static func supportFunctions() -> [UInt8] { [0x06, 0x00] }
-    public static func noise(variant: UInt8) -> [UInt8] { [0x66, variant] }
+    public static func noise(variant: V2NoiseVariant) -> [UInt8] { [0x66, variant.inquiry] }
     public static func battery(_ kind: MDRBatteryKind) -> [UInt8] { [0x22, kind.rawValue] }
     public static func equalizer() -> [UInt8] { [0x56, MDRProtocolFamily.v2.equalizerInquiredType] }
     public static func equalizerCapability() -> [UInt8] { equalizerCapabilityCommand(family: .v2) }
@@ -124,36 +124,8 @@ public enum V2Command {
         (0x28, .single), (0x29, .leftRight), (0x2A, .cradle),
     ]
 
-    /// Wire variant to use with `noise(variant:)` and `setNoise`, from the announced function id.
-    public static func noiseVariant(forFunction id: UInt8) -> UInt8? {
-        switch id {
-        case 0x6B: 0x17
-        case 0x6D: 0x19
-        case 0x67: 0x22
-        default: nil
-        }
-    }
-
-    public static func setNoise(_ mode: MDRNoiseMode, variant: UInt8) -> [UInt8] {
-        let effect: UInt8 = mode == .off ? 0x00 : 0x01
-        var ambientMode: UInt8 = 0x00
-        var focusOnVoice: UInt8 = 0x00
-        var level: UInt8 = 0x00
-        if case .ambient(let requested, let voice) = mode {
-            (ambientMode, focusOnVoice, level) = (0x01, voice ? 0x01 : 0x00, clampLevel(requested))
-        }
-
-        // 0x01 is value-changed, which every variant carries after the inquiry byte.
-        switch variant {
-        case 0x22:
-            // Ambient-only devices: no noise cancelling, so no mode byte either.
-            return [0x68, variant, 0x01, effect, focusOnVoice, level]
-        case 0x19:
-            // Trailing bytes turn noise adaptation off at standard sensitivity.
-            return [0x68, variant, 0x01, effect, ambientMode, focusOnVoice, level, 0x00, 0x00]
-        default:
-            return [0x68, variant, 0x01, effect, ambientMode, focusOnVoice, level]
-        }
+    public static func setNoise(_ mode: MDRNoiseMode, variant: V2NoiseVariant) -> [UInt8] {
+        variant.payload(for: mode)
     }
 
     public static func setGeneralSetting(slot: UInt8, settingType: UInt8, isOn: Bool) -> [UInt8] {

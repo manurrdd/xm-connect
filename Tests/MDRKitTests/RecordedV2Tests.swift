@@ -22,7 +22,7 @@ final class RecordedV2Tests: XCTestCase {
 
         XCTAssertEqual(functions?.count, 11)
         XCTAssertEqual(functions?.contains(0x6B), true, "noise cancelling with ambient level")
-        XCTAssertEqual(V2Command.noiseVariant(forFunction: 0x6B), 0x17)
+        XCTAssertEqual(V2NoiseVariant.forFunction(0x6B)?.inquiry, 0x17)
     }
 
     func testReadsNoiseState() {

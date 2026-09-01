@@ -42,9 +42,10 @@ public struct MDRCapabilities: Equatable {
             settingSlots = V1Command.generalSettingSlots.filter(announced.contains)
             hasUpscaling = announced.contains(0xE2)
         case .v2:
-            let variant = functions.compactMap(V2Command.noiseVariant(forFunction:)).first
-            hasNoiseCancelling = variant != nil && variant != 0x22
+            let variant = functions.compactMap(V2NoiseVariant.forFunction).first
+            hasNoiseCancelling = variant?.supportsNoiseCancelling ?? false
             hasAmbientSound = variant != nil
+            supportsWindReduction = variant?.supportsWindReduction ?? false
             hasEqualizer = announced.contains(0x50) || announced.contains(0x52) || announced.contains(0x53)
             hasPowerOff = announced.contains(0x23)
             batteries = V2Command.batteryFunctions.filter { announced.contains($0.id) }.map(\.kind)

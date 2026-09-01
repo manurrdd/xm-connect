@@ -34,32 +34,16 @@ public struct V1NoiseControl: Equatable {
     }
 }
 
-/// The v2 noise reply. Its shape depends on the variant the device announced: the ambient-only
-/// one carries no noise cancelling mode byte, and the noise-adaptive one appends two fields this
-/// does not use.
+/// The v2 noise reply. Its shape is whatever the announced variant says it is.
 public struct V2NoiseControl: Equatable {
     public let mode: MDRNoiseMode
 
     public init?(payload: [UInt8]) {
-        guard payload.count >= 6, payload[0] == 0x67 || payload[0] == 0x69 else { return nil }
-
-        switch payload[1] {
-        case 0x22:
-            mode = payload[3] == 0x00
-                ? .off
-                : .ambient(level: Int(payload[5]), focusOnVoice: payload[4] == 0x01)
-        case 0x17, 0x19:
-            guard payload.count >= 7 else { return nil }
-            if payload[3] == 0x00 {
-                mode = .off
-            } else if payload[4] == 0x01 {
-                mode = .ambient(level: Int(payload[6]), focusOnVoice: payload[5] == 0x01)
-            } else {
-                mode = .noiseCancelling(windReduction: false)
-            }
-        default:
-            return nil
-        }
+        guard payload.count >= 6, payload[0] == 0x67 || payload[0] == 0x69,
+              let variant = V2NoiseVariant.forInquiry(payload[1]),
+              let mode = variant.mode(from: payload)
+        else { return nil }
+        self.mode = mode
     }
 }
 

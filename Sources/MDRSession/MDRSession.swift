@@ -14,6 +14,8 @@ public final class MDRSession {
         public var equalizer: MDREqualizer?
         public var equalizerCapability: MDREqualizerCapability?
         public var battery: MDRBattery?
+        /// Earbud cases report separately, and a device that has one reports both.
+        public var caseBattery: MDRBatteryLevel?
         public var settings: [MDRSetting] = []
         public var upscaling: Bool?
 
@@ -38,7 +40,7 @@ public final class MDRSession {
     private var sequence: UInt8 = 0
     private var awaitingAcknowledgement: DispatchWorkItem?
     private var noiseSettingTypes: V1NoiseSettingTypes?
-    private var noiseVariant: UInt8?
+    private var noiseVariant: V2NoiseVariant?
     private var settingNames: [UInt8: String] = [:]
     private var settingTypes: [UInt8: UInt8] = [:]
 
@@ -136,9 +138,15 @@ public final class MDRSession {
             awaitingAcknowledgement?.cancel()
             awaitingAcknowledgement = nil
             sendNext()
-        case .data, .dataNo2:
+        case .data:
             try? link.send(MDRFrame(type: .ack, sequence: frame.sequence ^ 1, payload: []))
             apply(frame.payload)
+            sendNext()
+        case .dataNo2:
+            // Table 2 rides on its own data type and repeats opcodes with different meanings,
+            // including a second support-function list in another id namespace. Acknowledged so
+            // the device keeps talking, and otherwise left alone.
+            try? link.send(MDRFrame(type: .ack, sequence: frame.sequence ^ 1, payload: []))
             sendNext()
         }
     }
@@ -146,7 +154,7 @@ public final class MDRSession {
     private func apply(_ payload: [UInt8]) {
         if let functions = MDRSupportFunctions(payload: payload, family: family)?.ids {
             state.capabilities = MDRCapabilities(functions: functions, family: family)
-            noiseVariant = functions.compactMap(V2Command.noiseVariant(forFunction:)).first
+            noiseVariant = functions.compactMap(V2NoiseVariant.forFunction).first
             capabilityQueries().forEach(enqueue)
         }
 
@@ -175,8 +183,10 @@ public final class MDRSession {
             state.equalizer = equalizer
         }
 
-        if let battery = MDRBattery(payload: payload, family: family) {
-            state.battery = battery
+        switch MDRBattery(payload: payload, family: family) {
+        case .cradle(let level): state.caseBattery = level
+        case .some(let battery): state.battery = battery
+        case nil: break
         }
 
         if let info = MDRGeneralSettingInfo(payload: payload, family: family) {

@@ -88,6 +88,25 @@ to adopt.
 `ncValue` is a single axis: `02` dual (ANC), `01` single (wind reduction), `00` off (ambient).
 `asmLevel` runs 1 to 20, and `asmId` separates normal (`00`) from focus on voice (`01`).
 
+## v2 noise variants
+
+The announced function decides both the inquiry to use and the fields the payload carries. Sony
+names the two after the same feature set, which is what pairs them up:
+
+| Function | Inquiry | Mode field | Noise field | Trailing |
+|---|---|---|---|---|
+| `64` | `13` | no | on/off | |
+| `65` | `14` | no | dual/single/off | |
+| `68` | `15` | yes | dual/single/off | |
+| `6A` | `16` | yes | dual/single/off | |
+| `6B` | `17` | yes | none | |
+| `6D` | `19` | yes | none | noise adaptation off, standard sensitivity |
+| `67` | `22` | no | none | |
+
+Every payload runs `68`, inquiry, value-changed, total effect, then the fields above, then the
+ambient sound mode and its level. `6B`, `6D` and `67` appear in recorded sessions; the rest come
+from the message definitions.
+
 ## Feature surface
 
 libmdr defines 29 features as the protocol ceiling: identity, battery (single, left/right, case),

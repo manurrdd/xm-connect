@@ -75,29 +75,38 @@ struct MenuView: View {
 
     @ViewBuilder
     private var battery: some View {
-        if let battery = controller.state.battery {
+        if let text = batteryText {
             HStack(spacing: 3) {
-                if isCharging(battery) {
+                if isCharging {
                     Image(systemName: "bolt.fill").imageScale(.small)
                 }
-                Text(batteryText(battery))
+                Text(text)
             }
             .foregroundStyle(.secondary)
         }
     }
 
-    private func batteryText(_ battery: MDRBattery) -> String {
-        switch battery {
-        case .single(let level), .cradle(let level): "\(level.percent)%"
-        case .leftRight(let left, let right): "\(left.percent)% · \(right.percent)%"
+    private var batteryText: String? {
+        var parts: [String] = []
+        switch controller.state.battery {
+        case .single(let level), .cradle(let level): parts.append("\(level.percent)%")
+        case .leftRight(let left, let right): parts.append("\(left.percent)% · \(right.percent)%")
+        case nil: break
         }
+        if let caseLevel = controller.state.caseBattery {
+            parts.append("case \(caseLevel.percent)%")
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
-    private func isCharging(_ battery: MDRBattery) -> Bool {
-        switch battery {
-        case .single(let level), .cradle(let level): level.charging == .charging
-        case .leftRight(let left, let right): left.charging == .charging || right.charging == .charging
+    private var isCharging: Bool {
+        let levels: [MDRBatteryLevel]
+        switch controller.state.battery {
+        case .single(let level), .cradle(let level): levels = [level]
+        case .leftRight(let left, let right): levels = [left, right]
+        case nil: levels = []
         }
+        return (levels + [controller.state.caseBattery].compactMap { $0 }).contains { $0.charging == .charging }
     }
 
     private var noiseControls: some View {

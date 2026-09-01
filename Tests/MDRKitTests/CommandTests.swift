@@ -54,15 +54,87 @@ final class CommandTests: XCTestCase {
         XCTAssertEqual(command[5], 0x00)
     }
 
-    func testWritesNoiseOnEachV2Variant() {
+    private func variant(_ function: UInt8) -> V2NoiseVariant {
+        V2NoiseVariant.forFunction(function)!
+    }
+
+    func testWritesAmbientOnEachV2Variant() {
         let ambient = MDRNoiseMode.ambient(level: 5, focusOnVoice: false)
 
-        XCTAssertEqual(V2Command.setNoise(ambient, variant: 0x17), [0x68, 0x17, 0x01, 0x01, 0x01, 0x00, 0x05])
+        // Dual noise cancelling with a seamless ambient level, as the WH-1000XM5 announces it.
         XCTAssertEqual(
-            V2Command.setNoise(ambient, variant: 0x19),
+            V2Command.setNoise(ambient, variant: variant(0x6B)),
+            [0x68, 0x17, 0x01, 0x01, 0x01, 0x00, 0x05]
+        )
+        // The same, with noise adaptation reported off at standard sensitivity.
+        XCTAssertEqual(
+            V2Command.setNoise(ambient, variant: variant(0x6D)),
             [0x68, 0x19, 0x01, 0x01, 0x01, 0x00, 0x05, 0x00, 0x00]
         )
-        XCTAssertEqual(V2Command.setNoise(ambient, variant: 0x22), [0x68, 0x22, 0x01, 0x01, 0x00, 0x05])
+        // Ambient only: no mode field, because there is nothing to switch to.
+        XCTAssertEqual(
+            V2Command.setNoise(ambient, variant: variant(0x67)),
+            [0x68, 0x22, 0x01, 0x01, 0x00, 0x05]
+        )
+        // Dual or single cancelling plus a mode field.
+        XCTAssertEqual(
+            V2Command.setNoise(ambient, variant: variant(0x6A)),
+            [0x68, 0x16, 0x01, 0x01, 0x01, 0x00, 0x00, 0x05]
+        )
+        // Cancelling on or off, no mode field.
+        XCTAssertEqual(
+            V2Command.setNoise(ambient, variant: variant(0x64)),
+            [0x68, 0x13, 0x01, 0x01, 0x00, 0x00, 0x05]
+        )
+    }
+
+    func testWritesNoiseCancellingOnEachV2Variant() {
+        let cancelling = MDRNoiseMode.noiseCancelling(windReduction: false)
+
+        XCTAssertEqual(
+            V2Command.setNoise(cancelling, variant: variant(0x6B)),
+            [0x68, 0x17, 0x01, 0x01, 0x00, 0x00, 0x00]
+        )
+        // Dual is 02 where the field carries dual, single or off.
+        XCTAssertEqual(
+            V2Command.setNoise(cancelling, variant: variant(0x65)),
+            [0x68, 0x14, 0x01, 0x01, 0x02, 0x00, 0x00]
+        )
+        // On or off fields only take 01.
+        XCTAssertEqual(
+            V2Command.setNoise(cancelling, variant: variant(0x64)),
+            [0x68, 0x13, 0x01, 0x01, 0x01, 0x00, 0x00]
+        )
+    }
+
+    func testWritesWindReductionWhereTheVariantHasARoomForIt() {
+        let wind = MDRNoiseMode.noiseCancelling(windReduction: true)
+
+        XCTAssertEqual(V2Command.setNoise(wind, variant: variant(0x65))[4], 0x01, "single microphone")
+        XCTAssertEqual(V2Command.setNoise(wind, variant: variant(0x6B)).count, 7, "no field to carry it")
+    }
+
+    func testRoundTripsEveryV2VariantThroughTheParser() {
+        let modes: [MDRNoiseMode] = [
+            .off,
+            .noiseCancelling(windReduction: false),
+            .ambient(level: 12, focusOnVoice: true),
+        ]
+
+        for function: UInt8 in [0x64, 0x65, 0x68, 0x6A, 0x6B, 0x6D, 0x67] {
+            let variant = variant(function)
+            for mode in modes {
+                var reply = V2Command.setNoise(mode, variant: variant)
+                reply[0] = 0x67
+
+                let parsed = V2NoiseControl(payload: reply)?.mode
+
+                if function == 0x67, case .noiseCancelling = mode {
+                    continue  // an ambient-only device has nothing to come back as
+                }
+                XCTAssertEqual(parsed, mode, "function \(function.hex)")
+            }
+        }
     }
 
     func testWritesEqualizerPreset() {

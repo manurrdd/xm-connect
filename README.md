@@ -5,8 +5,9 @@ Sound Connect for phones only, so noise control, equalizer and battery are out o
 
 ## Status
 
-Reads are verified against a WH-1000XM4: handshake, capabilities, noise control, equalizer and
-battery. Writes are implemented and unit tested, but not yet confirmed on hardware.
+Working on a WH-1000XM4: noise control, equalizer, battery, the settings the headset exposes, and
+power off, read and written. The v2 path is checked against a recorded WF-1000XM5 session but has
+never run against one.
 
 ## Build
 
@@ -38,6 +39,13 @@ terminal application, so a shell without that permission aborts the process.
 It reads by default. Passing one of `--nc`, `--wind`, `--ambient <1-20>` (with `--voice` for focus
 on voice), `--noise-off` or `--power-off` applies that change and reads the state back. `--explore`
 additionally asks for every announced setting that has no decoder yet and prints the raw replies.
+
+## Devices
+
+The headset is asked what it can do and the menu is drawn from the answer, so there is no list of
+permitted models. What has actually been confirmed, what was only checked against a recorded
+session, and what is merely expected to work is set out in
+[docs/devices](docs/devices/README.md).
 
 ## Protocol
 

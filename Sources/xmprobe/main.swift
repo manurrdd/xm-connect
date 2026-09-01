@@ -25,7 +25,7 @@ final class Probe {
     private let action: ProbeAction?
     private let explore: Bool
     private var settingTypes: V1NoiseSettingTypes?
-    private var noiseVariant: UInt8?
+    private var noiseVariant: V2NoiseVariant?
     private var actionApplied = false
 
     init(device: MDRDevice, action: ProbeAction?, explore: Bool) {
@@ -229,7 +229,7 @@ final class Probe {
             }
             if explore { exploreV1(functions) }
         case .v2:
-            noiseVariant = functions.compactMap(V2Command.noiseVariant(forFunction:)).first
+            noiseVariant = functions.compactMap(V2NoiseVariant.forFunction).first
             if let noiseVariant {
                 pending.append(V2Command.noise(variant: noiseVariant))
             }
