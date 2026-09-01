@@ -9,7 +9,7 @@ import MDRKit
 public final class MDRSession {
     public struct State: Equatable {
         public var isReady = false
-        public var capabilities = MDRCapabilities(functions: [], family: .v1)
+        public var capabilities = MDRCapabilities()
         public var noise: MDRNoiseMode?
         public var equalizer: MDREqualizer?
         public var equalizerCapability: MDREqualizerCapability?

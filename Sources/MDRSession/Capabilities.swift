@@ -14,6 +14,8 @@ public struct MDRCapabilities: Equatable {
 
     public var hasNoiseControl: Bool { hasNoiseCancelling || hasAmbientSound }
 
+    public init() {}
+
     init(functions: [UInt8], family: MDRProtocolFamily) {
         let announced = Set(functions)
 

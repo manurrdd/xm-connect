@@ -137,6 +137,12 @@ final class Probe {
                 """)
         }
 
+        if let capability = MDREqualizerCapability(payload: payload, family: family) {
+            let presets = capability.presets.map { "\($0.id.hex) \($0.name)" }.joined(separator: ", ")
+            print("         \(capability.bandCount) bands, \(capability.stepCount) steps")
+            print("         presets: \(presets)")
+        }
+
         if let equalizer = MDREqualizer(payload: payload, family: family) {
             let clearBass = equalizer.clearBass.map { "clear bass \($0), " } ?? ""
             print("         preset \(equalizer.preset.hex), \(clearBass)bands \(equalizer.bands)")
@@ -191,7 +197,10 @@ final class Probe {
                 pending.append(V1Command.noiseCapability())
                 pending.append(V1Command.noise())
             }
-            if functions.contains(0x51) { pending.append(V1Command.equalizer()) }
+            if functions.contains(0x51) {
+                pending.append(V1Command.equalizerCapability())
+                pending.append(V1Command.equalizer())
+            }
             for (id, kind) in V1Command.batteryFunctions where functions.contains(id) {
                 pending.append(V1Command.battery(kind))
             }
@@ -201,6 +210,7 @@ final class Probe {
                 pending.append(V2Command.noise(variant: noiseVariant))
             }
             if functions.contains(0x50) || functions.contains(0x52) {
+                pending.append(V2Command.equalizerCapability())
                 pending.append(V2Command.equalizer())
             }
             for (id, kind) in V2Command.batteryFunctions where functions.contains(id) {
