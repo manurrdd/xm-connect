@@ -1,6 +1,5 @@
 import MDRKit
 import MDRSession
-import ServiceManagement
 import XMConnectCore
 import SwiftUI
 
@@ -212,6 +211,7 @@ struct ControlsView: View {
 
 struct MenuView: View {
     @ObservedObject var controller: HeadphonesController
+    @StateObject private var launchAtLogin = LaunchAtLogin()
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
@@ -220,21 +220,49 @@ struct MenuView: View {
 
             Divider()
 
-            Toggle("Launch at login", isOn: Binding(
-                get: { SMAppService.mainApp.status == .enabled },
-                set: { $0 ? try? SMAppService.mainApp.register() : try? SMAppService.mainApp.unregister() }
-            ))
-
-            Button("Open window") {
-                NSApplication.shared.activate(ignoringOtherApps: true)
-                openWindow(id: XMConnectApp.windowID)
-            }
-            Button("Quit") { NSApplication.shared.terminate(nil) }
-                .keyboardShortcut("q")
+            footer
         }
         .padding(14)
         .frame(width: 268)
-        .background(PanelVisibility(onOpen: controller.acquire, onClose: controller.relinquish))
+        .background(PanelVisibility(
+            onOpen: {
+                launchAtLogin.refresh()
+                controller.acquire()
+            },
+            onClose: controller.relinquish
+        ))
+    }
+
+    private var footer: some View {
+        HStack(spacing: 12) {
+            Toggle("Launch at login", isOn: Binding(
+                get: { launchAtLogin.isEnabled },
+                set: launchAtLogin.set
+            ))
+            .toggleStyle(.checkbox)
+            .font(.callout)
+
+            Spacer()
+
+            Button {
+                NSApplication.shared.activate(ignoringOtherApps: true)
+                openWindow(id: XMConnectApp.windowID)
+            } label: {
+                Image(systemName: "macwindow")
+            }
+            .help("Open window")
+
+            Button {
+                NSApplication.shared.terminate(nil)
+            } label: {
+                Image(systemName: "power")
+            }
+            .help("Quit")
+            .keyboardShortcut("q")
+        }
+        .buttonStyle(.borderless)
+        .imageScale(.large)
+        .foregroundStyle(.secondary)
     }
 }
 
