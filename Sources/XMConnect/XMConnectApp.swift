@@ -1,8 +1,12 @@
+import MDRTransport
 import SwiftUI
+import XMConnectCore
 
 @main
 struct XMConnectApp: App {
-    @StateObject private var controller = HeadphonesController()
+    static let windowID = "controls"
+
+    @StateObject private var controller = HeadphonesController(source: RFCOMMSource())
 
     var body: some Scene {
         MenuBarExtra {
@@ -11,5 +15,10 @@ struct XMConnectApp: App {
             Image(systemName: "headphones")
         }
         .menuBarExtraStyle(.window)
+
+        Window("XM Connect", id: Self.windowID) {
+            WindowView(controller: controller)
+        }
+        .windowResizability(.contentSize)
     }
 }

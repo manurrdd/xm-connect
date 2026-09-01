@@ -12,13 +12,17 @@ never run against one.
 ## Build
 
 ```sh
-make app     # .build/XMConnect.app
-make run
+make install   # builds, signs, and puts it in /Applications
+make run       # runs it from .build
 make test
+make dmg       # a disk image to hand to someone else
 ```
 
-The app is a menu bar item with no dock icon. It is signed ad hoc, so the first launch needs
-Right click, Open, or System Settings, Privacy & Security.
+Signed with a Developer ID when one is installed on the machine, ad hoc otherwise. `make notarize`
+submits the disk image once `xcrun notarytool store-credentials xm-connect` has been run.
+
+It lives in the menu bar with no dock icon, and opens a window on request for when the panel is in
+the way. Launch at login is a switch in the menu.
 
 It holds the control channel only while its menu is open, and lets go a few seconds after it
 closes. A headset accepts one control session at a time, so keeping the channel would lock Sony's

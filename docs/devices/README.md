@@ -23,7 +23,8 @@ Per-model notes are in this directory. Each one says where its claims come from.
 Noise cancelling, wind reduction where the device has a field for it, ambient sound with its own
 level range and focus on voice, the equalizer with the presets the device publishes, battery for
 headphones and earbud cases, power off, and the general settings the device announces, under the
-names it gives them. DSEE on v1.
+names it gives them. On v1 also DSEE, speak-to-chat, pause when removed, and when the headset
+powers itself off.
 
 Every v2 noise variant that carries an ambient level is covered: the announced function picks the
 inquiry and the payload shape, so a device announcing `64`, `65`, `68`, `6A`, `6B`, `6D` or `67`
@@ -39,9 +40,11 @@ is handled. Only `6B`, `6D` and `67` have ever been seen in a capture.
 - Table 2. It rides on its own data type, repeats opcodes with other meanings, and carries a second
   function list in a different id namespace. Frames arriving on it are acknowledged and ignored,
   which is why reading a WF-1000XM5 does not corrupt what table 1 said.
-- Speak-to-chat, auto power off, playback control by wearing, assignable controls, adaptive sound
-  control, and the noise cancelling optimizer. A WH-1000XM4 announces all of them and answers when
-  asked; the replies are recorded in its notes and not decoded yet.
+- Assignable controls, adaptive sound control, the noise cancelling optimizer, playback volume,
+  connection mode, voice guidance and paired device management. A WH-1000XM4 announces all of them
+  and answers when asked; the replies are in its notes.
+- Everything outside v1 for the settings above: a v2 headset is asked for none of them, because
+  nothing has confirmed the opcodes carry the same meaning there.
 
 ## Reporting a device
 

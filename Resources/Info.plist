@@ -8,6 +8,8 @@
 	<string>XM Connect</string>
 	<key>CFBundleExecutable</key>
 	<string>XMConnect</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.manurrdd.xmconnect</string>
 	<key>CFBundleName</key>

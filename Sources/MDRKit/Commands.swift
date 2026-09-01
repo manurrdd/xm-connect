@@ -97,6 +97,19 @@ public enum V1Command {
 
     public static let generalSettingSlots: [UInt8] = [0xD1, 0xD2, 0xD3]
 
+    public static func setSystemSwitch(_ setting: MDRSystemSwitch, isOn: Bool) -> [UInt8] {
+        [0xF8, setting.rawValue, 0x00, isOn ? 0x01 : 0x00]
+    }
+
+    /// Choosing a delay sets it as both the active and the remembered one; choosing a mode leaves
+    /// the remembered delay alone, which is what the device does with it when the mode ends.
+    public static func setAutoPowerOff(
+        _ value: MDRAutoPowerOff,
+        keepingDelay delay: MDRAutoPowerOff
+    ) -> [UInt8] {
+        [0xF8, 0x04, 0x01, value.rawValue, value.isDelay ? value.rawValue : delay.rawValue]
+    }
+
     /// Announced function ids that map onto a system inquiry.
     public static let systemFunctions: [(id: UInt8, inquiry: UInt8)] = [
         (0xF1, 0x01),  // vibrator

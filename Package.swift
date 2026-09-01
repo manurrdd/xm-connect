@@ -8,9 +8,11 @@ let package = Package(
         .target(name: "MDRKit"),
         .target(name: "MDRTransport", dependencies: ["MDRKit"]),
         .target(name: "MDRSession", dependencies: ["MDRKit"]),
+        .target(name: "XMConnectCore", dependencies: ["MDRKit", "MDRSession"]),
         .executableTarget(name: "xmprobe", dependencies: ["MDRKit", "MDRTransport"]),
-        .executableTarget(name: "XMConnect", dependencies: ["MDRKit", "MDRSession", "MDRTransport"]),
+        .executableTarget(name: "XMConnect", dependencies: ["XMConnectCore", "MDRTransport"]),
         .testTarget(name: "MDRKitTests", dependencies: ["MDRKit"]),
         .testTarget(name: "MDRSessionTests", dependencies: ["MDRSession"]),
+        .testTarget(name: "XMConnectCoreTests", dependencies: ["XMConnectCore"]),
     ]
 )

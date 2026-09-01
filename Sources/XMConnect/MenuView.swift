@@ -1,8 +1,11 @@
 import MDRKit
 import MDRSession
+import ServiceManagement
+import XMConnectCore
 import SwiftUI
 
-struct MenuView: View {
+/// The controls themselves, shown both in the menu bar panel and in a window.
+struct ControlsView: View {
     @ObservedObject var controller: HeadphonesController
 
     var body: some View {
@@ -12,15 +15,7 @@ struct MenuView: View {
             } else {
                 searching
             }
-
-            Divider()
-
-            Button("Quit") { NSApplication.shared.terminate(nil) }
-                .keyboardShortcut("q")
         }
-        .padding(14)
-        .frame(width: 268)
-        .background(PanelVisibility(onOpen: controller.menuOpened, onClose: controller.menuClosed))
     }
 
     private var searching: some View {
@@ -54,7 +49,7 @@ struct MenuView: View {
             equalizer(presets)
         }
 
-        if !controller.state.settings.isEmpty || controller.state.upscaling != nil {
+        if hasDeviceSettings {
             Divider()
             deviceSettings
         }
@@ -157,6 +152,13 @@ struct MenuView: View {
         }
     }
 
+    private var hasDeviceSettings: Bool {
+        !controller.state.settings.isEmpty
+            || !controller.state.systemSwitches.isEmpty
+            || controller.state.upscaling != nil
+            || controller.state.autoPowerOff != nil
+    }
+
     private var deviceSettings: some View {
         VStack(alignment: .leading, spacing: 6) {
             ForEach(controller.state.settings) { setting in
@@ -166,11 +168,31 @@ struct MenuView: View {
                 ))
             }
 
+            ForEach(MDRSystemSwitch.allCases, id: \.rawValue) { setting in
+                if let isOn = controller.state.systemSwitches[setting] {
+                    Toggle(setting.name, isOn: Binding(
+                        get: { isOn },
+                        set: { controller.setSystemSwitch(setting, isOn: $0) }
+                    ))
+                }
+            }
+
             if let upscaling = controller.state.upscaling {
                 Toggle("DSEE", isOn: Binding(
                     get: { upscaling },
                     set: { controller.setUpscaling($0) }
                 ))
+            }
+
+            if let autoPowerOff = controller.state.autoPowerOff {
+                Picker("Power off", selection: Binding(
+                    get: { autoPowerOff.active },
+                    set: { controller.setAutoPowerOff($0) }
+                )) {
+                    ForEach(MDRAutoPowerOff.allCases, id: \.rawValue) { value in
+                        Text(value.name).tag(value)
+                    }
+                }
             }
         }
     }
@@ -185,6 +207,46 @@ struct MenuView: View {
     private var currentAmbientLevel: Int {
         if case .ambient(let level, _) = controller.state.noise { return level }
         return controller.state.capabilities.ambientSteps
+    }
+}
+
+struct MenuView: View {
+    @ObservedObject var controller: HeadphonesController
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            ControlsView(controller: controller)
+
+            Divider()
+
+            Toggle("Launch at login", isOn: Binding(
+                get: { SMAppService.mainApp.status == .enabled },
+                set: { $0 ? try? SMAppService.mainApp.register() : try? SMAppService.mainApp.unregister() }
+            ))
+
+            Button("Open window") {
+                NSApplication.shared.activate(ignoringOtherApps: true)
+                openWindow(id: XMConnectApp.windowID)
+            }
+            Button("Quit") { NSApplication.shared.terminate(nil) }
+                .keyboardShortcut("q")
+        }
+        .padding(14)
+        .frame(width: 268)
+        .background(PanelVisibility(onOpen: controller.acquire, onClose: controller.relinquish))
+    }
+}
+
+struct WindowView: View {
+    @ObservedObject var controller: HeadphonesController
+
+    var body: some View {
+        ControlsView(controller: controller)
+            .padding(20)
+            .frame(width: 300)
+            .onAppear(perform: controller.acquire)
+            .onDisappear(perform: controller.relinquish)
     }
 }
 

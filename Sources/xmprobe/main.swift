@@ -14,7 +14,8 @@ enum ProbeAction {
 }
 
 final class Probe {
-    private let connection: RFCOMMConnection
+    private let headphones: HeadphonesDescription
+    private let connection: MDRLink
     private var pending: [[UInt8]] = []
     private var sequence: UInt8 = 0
     private var awaitingAck = false
@@ -28,18 +29,19 @@ final class Probe {
     private var noiseVariant: V2NoiseVariant?
     private var actionApplied = false
 
-    init(device: MDRDevice, action: ProbeAction?, explore: Bool) {
+    init(headphones: HeadphonesDescription, link: MDRLink, action: ProbeAction?, explore: Bool) {
+        self.headphones = headphones
         self.action = action
         self.explore = explore
-        connection = RFCOMMConnection(device: device)
+        connection = link
         connection.onOpen = { [weak self] in self?.channelOpened() }
         connection.onFrame = { [weak self] frame in self?.receive(frame) }
         connection.onClose = { [weak self] in self?.channelClosed() }
     }
 
     func run() throws {
-        print("device   \(connection.device.name)  [\(connection.device.address)]")
-        print("protocol \(connection.device.family.rawValue)")
+        print("device   \(headphones.name)  [\(headphones.address)]")
+        print("protocol \(headphones.family.rawValue)")
         try connection.open()
 
         while !finished, Date() < min(hardDeadline, silenceDeadline) {
@@ -56,13 +58,13 @@ final class Probe {
     private func canApply(_ action: ProbeAction) -> Bool {
         switch action {
         case .powerOff: true
-        case .setNoise: connection.device.family == .v1 ? settingTypes != nil : noiseVariant != nil
+        case .setNoise: headphones.family == .v1 ? settingTypes != nil : noiseVariant != nil
         }
     }
 
     private func channelOpened() {
         print("channel  open")
-        switch connection.device.family {
+        switch headphones.family {
         case .v1: pending = [V1Command.protocolInfo(), V1Command.supportFunctions()]
         case .v2: pending = [V2Command.protocolInfo(), V2Command.supportFunctions()]
         }
@@ -115,7 +117,7 @@ final class Probe {
     }
 
     private func report(_ payload: [UInt8]) {
-        let family = connection.device.family
+        let family = headphones.family
 
         if let info = MDRProtocolInfo(payload: payload, family: family) {
             let tables = info.tables.map { ", table1 \($0.table1), table2 \($0.table2)" } ?? ""
@@ -184,7 +186,7 @@ final class Probe {
 
     /// The write, followed by a read that shows what the device made of it.
     private func commands(for action: ProbeAction) -> [[UInt8]] {
-        switch (action, connection.device.family) {
+        switch (action, headphones.family) {
         case (.powerOff, .v1):
             return [V1Command.powerOff()]
         case (.powerOff, .v2):
@@ -211,10 +213,10 @@ final class Probe {
     /// Queries the device's own capability list makes possible.
     private func queueFollowUps(_ payload: [UInt8]) {
         guard let functions = MDRSupportFunctions(
-            payload: payload, family: connection.device.family
+            payload: payload, family: headphones.family
         )?.ids else { return }
 
-        switch connection.device.family {
+        switch headphones.family {
         case .v1:
             if functions.contains(0x62) {
                 pending.append(V1Command.noiseCapability())
@@ -265,7 +267,8 @@ func parseAction(_ arguments: [String]) -> ProbeAction? {
     return nil
 }
 
-let devices = RFCOMMConnection.discover()
+let source = RFCOMMSource()
+let devices = source.discover()
 guard let device = devices.first(where: \.isConnected) else {
     print(devices.isEmpty
         ? "no paired device exposes an MDR service"
@@ -276,7 +279,8 @@ guard let device = devices.first(where: \.isConnected) else {
 do {
     let arguments = Array(CommandLine.arguments.dropFirst())
     try Probe(
-        device: device,
+        headphones: device,
+        link: source.link(to: device),
         action: parseAction(arguments),
         explore: arguments.contains("--explore")
     ).run()

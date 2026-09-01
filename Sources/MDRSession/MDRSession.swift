@@ -18,6 +18,8 @@ public final class MDRSession {
         public var caseBattery: MDRBatteryLevel?
         public var settings: [MDRSetting] = []
         public var upscaling: Bool?
+        public var systemSwitches: [MDRSystemSwitch: Bool] = [:]
+        public var autoPowerOff: MDRAutoPowerOffState?
 
         public init() {}
     }
@@ -105,6 +107,22 @@ public final class MDRSession {
         if let index = state.settings.firstIndex(where: { $0.slot == slot }) {
             state.settings[index].isOn = isOn
         }
+    }
+
+    public func setSystemSwitch(_ setting: MDRSystemSwitch, isOn: Bool) {
+        guard family == .v1 else { return }
+        enqueue(V1Command.setSystemSwitch(setting, isOn: isOn))
+        enqueue(V1Command.systemSetting(setting.rawValue))
+        state.systemSwitches[setting] = isOn
+    }
+
+    public func setAutoPowerOff(_ value: MDRAutoPowerOff) {
+        guard family == .v1, let current = state.autoPowerOff else { return }
+        enqueue(V1Command.setAutoPowerOff(value, keepingDelay: current.selectedDelay))
+        enqueue(V1Command.systemSetting(0x04))
+        state.autoPowerOff = MDRAutoPowerOffState(
+            payload: [0xF7, 0x04, 0x01, value.rawValue, value.isDelay ? value.rawValue : current.selectedDelay.rawValue]
+        )
     }
 
     public func setUpscaling(_ isOn: Bool) {
@@ -213,6 +231,14 @@ public final class MDRSession {
         if let upscaling = MDRUpscaling(payload: payload) {
             state.upscaling = upscaling.isOn
         }
+
+        if let systemSwitch = MDRSystemSwitchState(payload: payload) {
+            state.systemSwitches[systemSwitch.setting] = systemSwitch.isOn
+        }
+
+        if let autoPowerOff = MDRAutoPowerOffState(payload: payload) {
+            state.autoPowerOff = autoPowerOff
+        }
     }
 
     private func capabilityQueries() -> [[UInt8]] {
@@ -236,6 +262,8 @@ public final class MDRSession {
                 [V1Command.generalSettingCapability(slot: $0), V1Command.generalSetting(slot: $0)]
             }
             if capabilities.hasUpscaling { queries.append(V1Command.audioSetting(0x02)) }
+            queries += capabilities.systemSwitches.map { V1Command.systemSetting($0.rawValue) }
+            if capabilities.hasAutoPowerOff { queries.append(V1Command.systemSetting(0x04)) }
         case .v2:
             if let noiseVariant { queries.append(V2Command.noise(variant: noiseVariant)) }
             queries += capabilities.batteries.map(V2Command.battery)

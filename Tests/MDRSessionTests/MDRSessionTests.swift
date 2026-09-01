@@ -26,6 +26,9 @@ private enum XM4 {
         [0xD1, 0xD2, 0x02, 0x12] + Array("MULTIPOINT_SETTING".utf8) + [0x00, 0x01, 0x00]
     static let multipointOn: [UInt8] = [0xD7, 0xD2, 0x01, 0x01]
     static let upscalingOn: [UInt8] = [0xE7, 0x02, 0x00, 0x01]
+    static let pauseWhenRemovedOn: [UInt8] = [0xF7, 0x03, 0x00, 0x01]
+    static let speakToChatOff: [UInt8] = [0xF7, 0x05, 0x00, 0x00]
+    static let autoPowerOffWhenRemoved: [UInt8] = [0xF7, 0x04, 0x01, 0x10, 0x00]
 }
 
 final class MDRSessionTests: XCTestCase {
@@ -73,6 +76,8 @@ final class MDRSessionTests: XCTestCase {
             [0xD0, 0xD1, 0x01], [0xD6, 0xD1],
             [0xD0, 0xD2, 0x01], [0xD6, 0xD2],
             [0xE6, 0x02],
+            [0xF6, 0x03], [0xF6, 0x05],
+            [0xF6, 0x04],
         ])
     }
 
@@ -140,6 +145,40 @@ final class MDRSessionTests: XCTestCase {
         XCTAssertEqual(session.state.settings.map(\.name), ["Touch panel", "Multipoint"])
         XCTAssertEqual(session.state.settings.map(\.isOn), [false, true])
         XCTAssertEqual(session.state.upscaling, true)
+    }
+
+    func testReadsTheSystemSettingsTheDeviceAnnounces() throws {
+        try settle()
+
+        XCTAssertEqual(session.state.systemSwitches[.pauseWhenRemoved], true)
+        XCTAssertEqual(session.state.systemSwitches[.speakToChat], false)
+        XCTAssertEqual(session.state.autoPowerOff?.active, .whenRemoved)
+        XCTAssertEqual(session.state.autoPowerOff?.selectedDelay, .afterFiveMinutes)
+    }
+
+    func testWritesASystemSwitch() throws {
+        try settle()
+
+        session.setSystemSwitch(.speakToChat, isOn: true)
+
+        XCTAssertEqual(link.commands.last, [0xF8, 0x05, 0x00, 0x01])
+        XCTAssertEqual(session.state.systemSwitches[.speakToChat], true)
+    }
+
+    func testWritesAPowerOffDelayAsBothActiveAndRemembered() throws {
+        try settle()
+
+        session.setAutoPowerOff(.afterThreeHours)
+
+        XCTAssertEqual(link.commands.last, [0xF8, 0x04, 0x01, 0x03, 0x03])
+    }
+
+    func testKeepsTheRememberedDelayWhenChoosingAMode() throws {
+        try settle()
+
+        session.setAutoPowerOff(.never)
+
+        XCTAssertEqual(link.commands.last, [0xF8, 0x04, 0x01, 0x11, 0x00])
     }
 
     func testWritesASettingAndShowsItStraightAway() throws {
@@ -218,5 +257,8 @@ final class MDRSessionTests: XCTestCase {
         link.reply(XM4.multipointName)
         link.reply(XM4.multipointOn)
         link.reply(XM4.upscalingOn)
+        link.reply(XM4.pauseWhenRemovedOn)
+        link.reply(XM4.speakToChatOff)
+        link.reply(XM4.autoPowerOffWhenRemoved)
     }
 }

@@ -24,6 +24,8 @@ public struct MDRCapabilities: Equatable {
     /// capability reply arrives.
     public var settingSlots: [UInt8] = []
     public var hasUpscaling = false
+    public var systemSwitches: [MDRSystemSwitch] = []
+    public var hasAutoPowerOff = false
 
     public var hasNoiseControl: Bool { hasNoiseCancelling || hasAmbientSound }
 
@@ -41,6 +43,8 @@ public struct MDRCapabilities: Equatable {
             batteries = V1Command.batteryFunctions.filter { announced.contains($0.id) }.map(\.kind)
             settingSlots = V1Command.generalSettingSlots.filter(announced.contains)
             hasUpscaling = announced.contains(0xE2)
+            systemSwitches = MDRSystemSwitch.allCases.filter { announced.contains($0.function) }
+            hasAutoPowerOff = announced.contains(0xF4)
         case .v2:
             let variant = functions.compactMap(V2NoiseVariant.forFunction).first
             hasNoiseCancelling = variant?.supportsNoiseCancelling ?? false

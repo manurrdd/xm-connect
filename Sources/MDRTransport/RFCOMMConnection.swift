@@ -2,14 +2,25 @@ import Foundation
 import IOBluetooth
 import MDRKit
 
-public struct MDRDevice {
-    public let name: String
-    public let address: String
-    public let family: MDRProtocolFamily
-    /// Whether the headset is connected to this Mac right now. Opening a channel to one that is
-    /// not makes macOS connect it, which is not ours to decide.
-    public let isConnected: Bool
+struct MDRDevice {
+    let description: HeadphonesDescription
     let bluetoothDevice: IOBluetoothDevice
+}
+
+/// Finds paired headsets over classic Bluetooth and opens channels to them.
+public struct RFCOMMSource: HeadphonesSource {
+    public init() {}
+
+    public func discover() -> [HeadphonesDescription] {
+        RFCOMMConnection.discover().map(\.description)
+    }
+
+    public func link(to headphones: HeadphonesDescription) throws -> MDRLink {
+        guard let device = RFCOMMConnection.discover()
+            .first(where: { $0.description.address == headphones.address })
+        else { throw RFCOMMError.noDeviceFound }
+        return RFCOMMConnection(device: device)
+    }
 }
 
 public enum RFCOMMError: Error, CustomStringConvertible {
@@ -30,23 +41,23 @@ public enum RFCOMMError: Error, CustomStringConvertible {
 
 /// Classic Bluetooth RFCOMM link to a headset, over the service that identifies its protocol
 /// family. Everything runs on the main run loop, which is where IOBluetooth delivers its callbacks.
-public final class RFCOMMConnection: NSObject, MDRLink {
-    public let device: MDRDevice
+final class RFCOMMConnection: NSObject, MDRLink {
+    let device: MDRDevice
 
-    public var onOpen: (() -> Void)?
-    public var onFrame: ((MDRFrame) -> Void)?
-    public var onClose: (() -> Void)?
+    var onOpen: (() -> Void)?
+    var onFrame: ((MDRFrame) -> Void)?
+    var onClose: (() -> Void)?
 
     private var channel: IOBluetoothRFCOMMChannel?
     private var reassembler = MDRFrameReassembler()
 
-    public init(device: MDRDevice) {
+    init(device: MDRDevice) {
         self.device = device
     }
 
     /// Paired devices exposing an MDR service, v2 first. Model names are never consulted: the
     /// service the headset answers to is what determines the command table.
-    public static func discover() -> [MDRDevice] {
+    static func discover() -> [MDRDevice] {
         guard let paired = IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice] else { return [] }
 
         return paired.compactMap { device in
@@ -55,17 +66,19 @@ public final class RFCOMMConnection: NSObject, MDRLink {
             }) else { return nil }
 
             return MDRDevice(
-                name: device.name ?? "unknown",
-                address: device.addressString ?? "unknown",
-                family: family,
-                isConnected: device.isConnected(),
+                description: HeadphonesDescription(
+                    name: device.name ?? "unknown",
+                    address: device.addressString ?? "unknown",
+                    family: family,
+                    isConnected: device.isConnected()
+                ),
                 bluetoothDevice: device
             )
         }
     }
 
-    public func open() throws {
-        guard let record = device.bluetoothDevice.getServiceRecord(for: device.family.sdpUUID) else {
+    func open() throws {
+        guard let record = device.bluetoothDevice.getServiceRecord(for: device.description.family.sdpUUID) else {
             throw RFCOMMError.noDeviceFound
         }
 
@@ -82,21 +95,21 @@ public final class RFCOMMConnection: NSObject, MDRLink {
         channel = opened
     }
 
-    public func send(_ frame: MDRFrame) throws {
+    func send(_ frame: MDRFrame) throws {
         guard let channel else { throw RFCOMMError.notOpen }
         var bytes = MDRFraming.pack(frame)
         let status = channel.writeSync(&bytes, length: UInt16(bytes.count))
         guard status == kIOReturnSuccess else { throw RFCOMMError.openFailed(status) }
     }
 
-    public func close() {
+    func close() {
         channel?.close()
         channel = nil
     }
 }
 
 extension RFCOMMConnection: IOBluetoothRFCOMMChannelDelegate {
-    public func rfcommChannelOpenComplete(_ channel: IOBluetoothRFCOMMChannel!, status: IOReturn) {
+    func rfcommChannelOpenComplete(_ channel: IOBluetoothRFCOMMChannel!, status: IOReturn) {
         guard status == kIOReturnSuccess else {
             onClose?()
             return
@@ -104,7 +117,7 @@ extension RFCOMMConnection: IOBluetoothRFCOMMChannelDelegate {
         onOpen?()
     }
 
-    public func rfcommChannelData(
+    func rfcommChannelData(
         _ channel: IOBluetoothRFCOMMChannel!,
         data pointer: UnsafeMutableRawPointer!,
         length: Int
@@ -115,7 +128,7 @@ extension RFCOMMConnection: IOBluetoothRFCOMMChannelDelegate {
         }
     }
 
-    public func rfcommChannelClosed(_ channel: IOBluetoothRFCOMMChannel!) {
+    func rfcommChannelClosed(_ channel: IOBluetoothRFCOMMChannel!) {
         self.channel = nil
         onClose?()
     }
