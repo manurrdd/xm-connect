@@ -37,9 +37,10 @@ public final class MDRSession {
     private var queue: [[UInt8]] = []
     private var sequence: UInt8 = 0
     private var awaitingAcknowledgement: DispatchWorkItem?
-    private var settingTypes: V1NoiseSettingTypes?
+    private var noiseSettingTypes: V1NoiseSettingTypes?
     private var noiseVariant: UInt8?
     private var settingNames: [UInt8: String] = [:]
+    private var settingTypes: [UInt8: UInt8] = [:]
 
     public init(family: MDRProtocolFamily, link: MDRLink, acknowledgementTimeout: TimeInterval = 3) {
         self.family = family
@@ -64,8 +65,8 @@ public final class MDRSession {
     public func setNoise(_ mode: MDRNoiseMode) {
         switch family {
         case .v1:
-            guard let settingTypes else { return }
-            enqueue(V1Command.setNoise(mode, settingTypes: settingTypes))
+            guard let noiseSettingTypes else { return }
+            enqueue(V1Command.setNoise(mode, settingTypes: noiseSettingTypes))
         case .v2:
             guard let noiseVariant else { return }
             enqueue(V2Command.setNoise(mode, variant: noiseVariant))
@@ -90,8 +91,9 @@ public final class MDRSession {
     }
 
     public func setSetting(slot: UInt8, isOn: Bool) {
-        guard family == .v1 else { return }
-        enqueue(V1Command.setGeneralSetting(slot: slot, isOn: isOn))
+        guard family == .v1, let settingType = settingTypes[slot] else { return }
+        enqueue(V1Command.setGeneralSetting(slot: slot, settingType: settingType, isOn: isOn))
+        enqueue(V1Command.generalSetting(slot: slot))
         if let index = state.settings.firstIndex(where: { $0.slot == slot }) {
             state.settings[index].isOn = isOn
         }
@@ -100,6 +102,7 @@ public final class MDRSession {
     public func setUpscaling(_ isOn: Bool) {
         guard family == .v1 else { return }
         enqueue(V1Command.setUpscaling(isOn: isOn))
+        enqueue(V1Command.audioSetting(0x02))
         state.upscaling = isOn
     }
 
@@ -142,14 +145,14 @@ public final class MDRSession {
         }
 
         if let capability = V1NoiseCapability(payload: payload) {
-            settingTypes = V1NoiseSettingTypes(capability)
+            noiseSettingTypes = V1NoiseSettingTypes(capability)
             state.capabilities.refine(with: capability)
         }
 
         switch family {
         case .v1:
             if let noise = V1NoiseControl(payload: payload) {
-                settingTypes = V1NoiseSettingTypes(noise)
+                noiseSettingTypes = V1NoiseSettingTypes(noise)
                 state.noise = noise.mode
             }
         case .v2:
@@ -172,6 +175,10 @@ public final class MDRSession {
 
         if let info = MDRGeneralSettingInfo(payload: payload) {
             settingNames[info.slot] = info.displayName
+        }
+
+        if let value = MDRGeneralSettingValue(payload: payload) {
+            settingTypes[value.slot] = value.settingType
         }
 
         if let value = MDRGeneralSettingValue(payload: payload), let isOn = value.isOn {

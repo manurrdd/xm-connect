@@ -117,8 +117,17 @@ final class MDRSessionTests: XCTestCase {
 
         session.setSetting(slot: 0xD1, isOn: true)
 
-        XCTAssertEqual(link.commands.last, [0xD8, 0xD1, 0x01])
+        XCTAssertEqual(link.commands.last, [0xD8, 0xD1, 0x01, 0x01])
         XCTAssertEqual(session.state.settings.first?.isOn, true)
+    }
+
+    func testReadsASettingBackAfterWritingIt() throws {
+        try settle()
+
+        session.setSetting(slot: 0xD1, isOn: true)
+        link.reply(XM4.touchPanelOff)
+
+        XCTAssertEqual(session.state.settings.first?.isOn, false, "the device has the last word")
     }
 
     func testWritesNoiseWithTheSettingTypesTheDeviceReported() throws {

@@ -7,8 +7,6 @@ struct XMConnectApp: App {
     var body: some Scene {
         MenuBarExtra {
             MenuView(controller: controller)
-                .onAppear { controller.menuOpened() }
-                .onDisappear { controller.menuClosed() }
         } label: {
             Image(systemName: "headphones")
         }

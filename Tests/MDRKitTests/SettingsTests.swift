@@ -43,8 +43,15 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(MDRGeneralSettingValue(payload: [0xD9, 0xD2, 0x01, 0x00])?.isOn, false)
     }
 
-    func testWritesASlot() {
-        XCTAssertEqual(V1Command.setGeneralSetting(slot: 0xD1, isOn: true), [0xD8, 0xD1, 0x01])
+    func testWritesASlotWithTheReportedSettingType() {
+        XCTAssertEqual(
+            V1Command.setGeneralSetting(slot: 0xD1, settingType: 0x01, isOn: true),
+            [0xD8, 0xD1, 0x01, 0x01]
+        )
+    }
+
+    func testKeepsTheSettingTypeAWriteHasToCarryBack() {
+        XCTAssertEqual(MDRGeneralSettingValue(payload: [0xD7, 0xD1, 0x01, 0x00])?.settingType, 0x01)
     }
 
     func testReadsUpscaling() {

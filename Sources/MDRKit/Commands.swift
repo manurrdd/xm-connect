@@ -84,8 +84,10 @@ public enum V1Command {
     public static func systemSetting(_ type: UInt8) -> [UInt8] { [0xF6, type] }
     public static func audioSetting(_ type: UInt8) -> [UInt8] { [0xE6, type] }
 
-    public static func setGeneralSetting(slot: UInt8, isOn: Bool) -> [UInt8] {
-        [0xD8, slot, isOn ? 0x01 : 0x00]
+    /// The setting type the device reported has to come back with the value. Without it the
+    /// WH-1000XM4 acknowledges the write and changes nothing.
+    public static func setGeneralSetting(slot: UInt8, settingType: UInt8, isOn: Bool) -> [UInt8] {
+        [0xD8, slot, settingType, isOn ? 0x01 : 0x00]
     }
 
     /// 0x00 selects the automatic mode, which is the only alternative to off.

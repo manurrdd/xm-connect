@@ -20,6 +20,7 @@ struct MenuView: View {
         }
         .padding(14)
         .frame(width: 268)
+        .background(PanelVisibility(onOpen: controller.menuOpened, onClose: controller.menuClosed))
     }
 
     private var searching: some View {

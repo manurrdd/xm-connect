@@ -47,6 +47,8 @@ public struct MDRGeneralSettingInfo: Equatable {
 /// device offers; boolean ones carry on or off.
 public struct MDRGeneralSettingValue: Equatable {
     public let slot: UInt8
+    /// Boolean or list. Writes have to carry it back, so it is kept rather than folded away.
+    public let settingType: UInt8
     public let isOn: Bool?
     public let index: UInt8?
 
@@ -54,6 +56,7 @@ public struct MDRGeneralSettingValue: Equatable {
         guard payload.count >= 4, payload[0] == 0xD7 || payload[0] == 0xD9 else { return nil }
 
         slot = payload[1]
+        settingType = payload[2]
         switch payload[2] {
         case 0x01:
             isOn = payload[3] == 0x01
