@@ -7,7 +7,9 @@ let package = Package(
     targets: [
         .target(name: "MDRKit"),
         .target(name: "MDRTransport", dependencies: ["MDRKit"]),
+        .target(name: "MDRSession", dependencies: ["MDRKit"]),
         .executableTarget(name: "xmprobe", dependencies: ["MDRKit", "MDRTransport"]),
         .testTarget(name: "MDRKitTests", dependencies: ["MDRKit"]),
+        .testTarget(name: "MDRSessionTests", dependencies: ["MDRSession"]),
     ]
 )

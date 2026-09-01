@@ -59,3 +59,45 @@ func equalizerBandsCommand(
     let encoded = levels.map { UInt8(min(offset * 2, max(0, $0 + offset))) }
     return [0x58, family.equalizerInquiredType, preset, UInt8(encoded.count)] + encoded
 }
+
+/// The presets a device offers, with the names it publishes, plus the shape of its band editor.
+/// Asking beats assuming: the preset ids are one namespace across families but each model exposes
+/// its own subset.
+public struct MDREqualizerCapability: Equatable {
+    public struct Preset: Equatable {
+        public let id: UInt8
+        public let name: String
+    }
+
+    public let bandCount: Int
+    public let stepCount: Int
+    public let presets: [Preset]
+
+    public init?(payload: [UInt8], family: MDRProtocolFamily) {
+        guard payload.count >= 5,
+              payload[0] == 0x51,
+              payload[1] == family.equalizerInquiredType
+        else { return nil }
+
+        bandCount = Int(payload[2])
+        stepCount = Int(payload[3])
+
+        var presets: [Preset] = []
+        var index = 5
+        for _ in 0..<Int(payload[4]) {
+            guard index + 1 < payload.count else { return nil }
+            let id = payload[index]
+            let length = Int(payload[index + 1])
+            let start = index + 2
+            guard start + length <= payload.count else { return nil }
+            presets.append(Preset(id: id, name: String(decoding: payload[start..<(start + length)], as: UTF8.self)))
+            index = start + length
+        }
+        self.presets = presets
+    }
+}
+
+func equalizerCapabilityCommand(family: MDRProtocolFamily) -> [UInt8] {
+    // 0x01 asks for English preset names.
+    [0x50, family.equalizerInquiredType, 0x01]
+}

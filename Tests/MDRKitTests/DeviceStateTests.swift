@@ -29,6 +29,27 @@ final class DeviceStateTests: XCTestCase {
         XCTAssertNil(V1NoiseControl(payload: [0x67, 0x03, 0x11, 0x01, 0x00, 0x01, 0x00, 0x05]))
     }
 
+    func testReadsEqualizerCapability() {
+        let payload: [UInt8] = [
+            0x51, 0x01, 0x06, 0x15, 0x02,
+            0x00, 0x03, 0x4F, 0x66, 0x66,
+            0xA0, 0x06, 0x43, 0x75, 0x73, 0x74, 0x6F, 0x6D,
+        ]
+
+        let capability = MDREqualizerCapability(payload: payload, family: .v1)
+
+        XCTAssertEqual(capability?.bandCount, 6)
+        XCTAssertEqual(capability?.stepCount, 21)
+        XCTAssertEqual(capability?.presets, [
+            .init(id: 0x00, name: "Off"),
+            .init(id: 0xA0, name: "Custom"),
+        ])
+    }
+
+    func testRejectsEqualizerCapabilityThatRunsPastItsEnd() {
+        XCTAssertNil(MDREqualizerCapability(payload: [0x51, 0x01, 0x06, 0x15, 0x01, 0x00, 0x09, 0x4F], family: .v1))
+    }
+
     func testReadsFlatSixBandEqualizer() {
         let equalizer = MDREqualizer(
             payload: [0x57, 0x01, 0x00, 0x06, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A], family: .v1

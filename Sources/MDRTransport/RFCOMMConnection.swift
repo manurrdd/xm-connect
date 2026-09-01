@@ -25,17 +25,14 @@ public enum RFCOMMError: Error, CustomStringConvertible {
     }
 }
 
-public protocol RFCOMMConnectionDelegate: AnyObject {
-    func connection(_ connection: RFCOMMConnection, didReceive frame: MDRFrame)
-    func connectionDidOpen(_ connection: RFCOMMConnection)
-    func connectionDidClose(_ connection: RFCOMMConnection)
-}
-
 /// Classic Bluetooth RFCOMM link to a headset, over the service that identifies its protocol
 /// family. Everything runs on the main run loop, which is where IOBluetooth delivers its callbacks.
-public final class RFCOMMConnection: NSObject {
+public final class RFCOMMConnection: NSObject, MDRLink {
     public let device: MDRDevice
-    public weak var delegate: RFCOMMConnectionDelegate?
+
+    public var onOpen: (() -> Void)?
+    public var onFrame: ((MDRFrame) -> Void)?
+    public var onClose: (() -> Void)?
 
     private var channel: IOBluetoothRFCOMMChannel?
     private var reassembler = MDRFrameReassembler()
@@ -97,10 +94,10 @@ public final class RFCOMMConnection: NSObject {
 extension RFCOMMConnection: IOBluetoothRFCOMMChannelDelegate {
     public func rfcommChannelOpenComplete(_ channel: IOBluetoothRFCOMMChannel!, status: IOReturn) {
         guard status == kIOReturnSuccess else {
-            delegate?.connectionDidClose(self)
+            onClose?()
             return
         }
-        delegate?.connectionDidOpen(self)
+        onOpen?()
     }
 
     public func rfcommChannelData(
@@ -110,13 +107,13 @@ extension RFCOMMConnection: IOBluetoothRFCOMMChannelDelegate {
     ) {
         let bytes = Array(UnsafeRawBufferPointer(start: pointer, count: length))
         for frame in reassembler.consume(bytes) {
-            delegate?.connection(self, didReceive: frame)
+            onFrame?(frame)
         }
     }
 
     public func rfcommChannelClosed(_ channel: IOBluetoothRFCOMMChannel!) {
         self.channel = nil
-        delegate?.connectionDidClose(self)
+        onClose?()
     }
 }
 

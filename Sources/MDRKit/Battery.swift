@@ -12,6 +12,11 @@ public enum MDRChargingState: UInt8 {
 public struct MDRBatteryLevel: Equatable {
     public let percent: Int
     public let charging: MDRChargingState
+
+    public init(percent: Int, charging: MDRChargingState) {
+        self.percent = percent
+        self.charging = charging
+    }
 }
 
 public enum MDRBattery: Equatable {

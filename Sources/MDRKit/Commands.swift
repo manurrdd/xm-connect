@@ -40,6 +40,7 @@ public enum V1Command {
     public static func noise() -> [UInt8] { [0x66, noiseInquiredType] }
     public static func battery(_ kind: MDRBatteryKind) -> [UInt8] { [0x10, kind.rawValue] }
     public static func equalizer() -> [UInt8] { [0x56, MDRProtocolFamily.v1.equalizerInquiredType] }
+    public static func equalizerCapability() -> [UInt8] { equalizerCapabilityCommand(family: .v1) }
 
     /// Announced function ids and the battery layout each one enables.
     public static let batteryFunctions: [(id: UInt8, kind: MDRBatteryKind)] = [
@@ -83,6 +84,7 @@ public enum V2Command {
     public static func noise(variant: UInt8) -> [UInt8] { [0x66, variant] }
     public static func battery(_ kind: MDRBatteryKind) -> [UInt8] { [0x22, kind.rawValue] }
     public static func equalizer() -> [UInt8] { [0x56, MDRProtocolFamily.v2.equalizerInquiredType] }
+    public static func equalizerCapability() -> [UInt8] { equalizerCapabilityCommand(family: .v2) }
 
     /// Announced function ids and the battery layout each one enables. The second row is the same
     /// three layouts reported with a low-battery threshold appended.

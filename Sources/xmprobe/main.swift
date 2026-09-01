@@ -13,7 +13,7 @@ enum ProbeAction {
     case powerOff
 }
 
-final class Probe: NSObject, RFCOMMConnectionDelegate {
+final class Probe {
     private let connection: RFCOMMConnection
     private var pending: [[UInt8]] = []
     private var sequence: UInt8 = 0
@@ -30,8 +30,9 @@ final class Probe: NSObject, RFCOMMConnectionDelegate {
     init(device: MDRDevice, action: ProbeAction?) {
         self.action = action
         connection = RFCOMMConnection(device: device)
-        super.init()
-        connection.delegate = self
+        connection.onOpen = { [weak self] in self?.channelOpened() }
+        connection.onFrame = { [weak self] frame in self?.receive(frame) }
+        connection.onClose = { [weak self] in self?.channelClosed() }
     }
 
     func run() throws {
@@ -45,7 +46,7 @@ final class Probe: NSObject, RFCOMMConnectionDelegate {
         connection.close()
     }
 
-    func connectionDidOpen(_ connection: RFCOMMConnection) {
+    private func channelOpened() {
         print("channel  open")
         switch connection.device.family {
         case .v1: pending = [V1Command.protocolInfo(), V1Command.supportFunctions()]
@@ -54,12 +55,12 @@ final class Probe: NSObject, RFCOMMConnectionDelegate {
         sendNext()
     }
 
-    func connectionDidClose(_ connection: RFCOMMConnection) {
+    private func channelClosed() {
         print("channel  closed")
         finished = true
     }
 
-    func connection(_ connection: RFCOMMConnection, didReceive frame: MDRFrame) {
+    private func receive(_ frame: MDRFrame) {
         silenceDeadline = Date().addingTimeInterval(silenceTimeout)
 
         switch frame.type {

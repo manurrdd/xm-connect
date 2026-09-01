@@ -23,6 +23,44 @@ public struct V1NoiseControl: Equatable {
         asmId = payload[6]
         asmLevel = payload[7]
     }
+
+    public var mode: MDRNoiseMode {
+        guard effect != 0x00 else { return .off }
+        switch ncValue {
+        case 0x02: return .noiseCancelling(windReduction: false)
+        case 0x01: return .noiseCancelling(windReduction: true)
+        default: return .ambient(level: Int(asmLevel), focusOnVoice: asmId == 0x01)
+        }
+    }
+}
+
+/// The v2 noise reply. Its shape depends on the variant the device announced: the ambient-only
+/// one carries no noise cancelling mode byte, and the noise-adaptive one appends two fields this
+/// does not use.
+public struct V2NoiseControl: Equatable {
+    public let mode: MDRNoiseMode
+
+    public init?(payload: [UInt8]) {
+        guard payload.count >= 6, payload[0] == 0x67 || payload[0] == 0x69 else { return nil }
+
+        switch payload[1] {
+        case 0x22:
+            mode = payload[3] == 0x00
+                ? .off
+                : .ambient(level: Int(payload[5]), focusOnVoice: payload[4] == 0x01)
+        case 0x17, 0x19:
+            guard payload.count >= 7 else { return nil }
+            if payload[3] == 0x00 {
+                mode = .off
+            } else if payload[4] == 0x01 {
+                mode = .ambient(level: Int(payload[6]), focusOnVoice: payload[5] == 0x01)
+            } else {
+                mode = .noiseCancelling(windReduction: false)
+            }
+        default:
+            return nil
+        }
+    }
 }
 
 /// What the device says its noise control can do. The setting types here are the ones a write
