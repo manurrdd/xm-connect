@@ -23,6 +23,9 @@ swift run xmprobe
 Run it from Terminal and accept the Bluetooth prompt. macOS attributes the request to the
 terminal application, so a shell without that permission aborts the process.
 
+It reads by default. Passing one of `--nc`, `--wind`, `--ambient <1-20>` (with `--voice` for focus
+on voice), `--noise-off` or `--power-off` applies that change and reads the state back.
+
 ## Protocol
 
 Sony headsets speak one of two command tables over RFCOMM, and which one applies is decided by the
