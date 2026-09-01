@@ -8,6 +8,11 @@ import MDRTransport
 private let silenceTimeout: TimeInterval = 4
 private let overallTimeout: TimeInterval = 30
 
+enum ProbeAction {
+    case setNoise(MDRNoiseMode)
+    case powerOff
+}
+
 final class Probe: NSObject, RFCOMMConnectionDelegate {
     private let connection: RFCOMMConnection
     private var pending: [[UInt8]] = []
@@ -17,7 +22,13 @@ final class Probe: NSObject, RFCOMMConnectionDelegate {
     private var silenceDeadline = Date().addingTimeInterval(silenceTimeout)
     private var finished = false
 
-    init(device: MDRDevice) {
+    private let action: ProbeAction?
+    private var settingTypes: V1NoiseSettingTypes?
+    private var noiseVariant: UInt8?
+    private var actionApplied = false
+
+    init(device: MDRDevice, action: ProbeAction?) {
+        self.action = action
         connection = RFCOMMConnection(device: device)
         super.init()
         connection.delegate = self
@@ -64,9 +75,15 @@ final class Probe: NSObject, RFCOMMConnectionDelegate {
         }
     }
 
-    /// One command at a time: the next one goes out when the device acknowledges the last.
+    /// One command at a time: the next one goes out when the device acknowledges the last. The
+    /// requested change, if any, is applied once the reads have drained and told us how to write it.
     private func sendNext() {
-        guard !awaitingAck, !pending.isEmpty else { return }
+        guard !awaitingAck else { return }
+        if pending.isEmpty, let action, !actionApplied {
+            actionApplied = true
+            pending = commands(for: action)
+        }
+        guard !pending.isEmpty else { return }
         let payload = pending.removeFirst()
         do {
             try connection.send(MDRFrame(type: .data, sequence: sequence, payload: payload))
@@ -98,6 +115,7 @@ final class Probe: NSObject, RFCOMMConnectionDelegate {
         }
 
         if let capability = V1NoiseCapability(payload: payload) {
+            settingTypes = V1NoiseSettingTypes(capability)
             let modes = capability.ambientModes
                 .map { "\($0.id.hex) with \($0.steps) steps" }
                 .joined(separator: ", ")
@@ -109,6 +127,7 @@ final class Probe: NSObject, RFCOMMConnectionDelegate {
         }
 
         if let noise = V1NoiseControl(payload: payload) {
+            settingTypes = V1NoiseSettingTypes(noise)
             print("""
                          effect \(noise.effect.hex), \
                 ncSettingType \(noise.ncSettingType.hex), ncValue \(noise.ncValue.hex), \
@@ -124,6 +143,28 @@ final class Probe: NSObject, RFCOMMConnectionDelegate {
 
         if let battery = MDRBattery(payload: payload, family: family) {
             print("         \(describe(battery))")
+        }
+    }
+
+    /// The write, followed by a read that shows what the device made of it.
+    private func commands(for action: ProbeAction) -> [[UInt8]] {
+        switch (action, connection.device.family) {
+        case (.powerOff, .v1):
+            return [V1Command.powerOff()]
+        case (.powerOff, .v2):
+            return [V2Command.powerOff()]
+        case (.setNoise(let mode), .v1):
+            guard let settingTypes else {
+                print("error    the device did not report its noise setting types")
+                return []
+            }
+            return [V1Command.setNoise(mode, settingTypes: settingTypes), V1Command.noise()]
+        case (.setNoise(let mode), .v2):
+            guard let noiseVariant else {
+                print("error    the device announced no known noise variant")
+                return []
+            }
+            return [V2Command.setNoise(mode, variant: noiseVariant), V2Command.noise(variant: noiseVariant)]
         }
     }
 
@@ -154,8 +195,9 @@ final class Probe: NSObject, RFCOMMConnectionDelegate {
                 pending.append(V1Command.battery(kind))
             }
         case .v2:
-            if let variant = functions.compactMap(V2Command.noiseVariant(forFunction:)).first {
-                pending.append(V2Command.noise(variant: variant))
+            noiseVariant = functions.compactMap(V2Command.noiseVariant(forFunction:)).first
+            if let noiseVariant {
+                pending.append(V2Command.noise(variant: noiseVariant))
             }
             if functions.contains(0x50) || functions.contains(0x52) {
                 pending.append(V2Command.equalizer())
@@ -165,6 +207,27 @@ final class Probe: NSObject, RFCOMMConnectionDelegate {
             }
         }
     }
+}
+
+func parseAction(_ arguments: [String]) -> ProbeAction? {
+    let focusOnVoice = arguments.contains("--voice")
+
+    for (index, argument) in arguments.enumerated() {
+        switch argument {
+        case "--noise-off": return .setNoise(.off)
+        case "--nc": return .setNoise(.noiseCancelling(windReduction: false))
+        case "--wind": return .setNoise(.noiseCancelling(windReduction: true))
+        case "--power-off": return .powerOff
+        case "--ambient":
+            guard let level = arguments.dropFirst(index + 1).first.flatMap(Int.init) else {
+                print("usage    --ambient <1-20>")
+                exit(1)
+            }
+            return .setNoise(.ambient(level: level, focusOnVoice: focusOnVoice))
+        default: continue
+        }
+    }
+    return nil
 }
 
 let devices = RFCOMMConnection.discover()
@@ -177,7 +240,7 @@ if devices.count > 1 {
 }
 
 do {
-    try Probe(device: device).run()
+    try Probe(device: device, action: parseAction(Array(CommandLine.arguments.dropFirst()))).run()
 } catch {
     print("error    \(error)")
     exit(1)
